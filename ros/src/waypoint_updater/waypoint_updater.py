@@ -73,9 +73,32 @@ class WaypointUpdater(object):
             rate.sleep()
             if self.waypoints is None or self.pose is None:
                 continue
-
+        def get_closest_waypoint_idx(waypoints, pose):
+            ##return index of the closest waypoints in the list
+            closest_gap = float('inf')
+            closest_index =0
+            p0 = pose.position
+            
+            
+            for i,waypoint in enumerate(waypoints):
+                #calculate distances
+                p1 = waypoint.pose.pose.position
+                gap = (p0.x-p1.x)**2 + (p0.y - p1.y)**2
+                if gap<closest_gap:
+                    closest_gap,closest_index = gap, i
+            
+            shift_x = waypoints[closest_index].pose.pose.position.x- pose.x
+            shift_y = waypoints[closest_index].pose.pose.position.y- pose.y
+            
+            #do coordinate system transformation
+            shift = shift_x*cos(0 - self.theta) - shift_y*sin(0 - self.theta)
+            if shift <=0:
+                closest_index+=1
+                    
+            return closest_index
+            
             #where car is located at
-            car_index = get_closest_waypoint_idx()
+            car_index = get_closest_waypoint_idx(self.waypoints,self.pose)
             #get subset waypoints ahead
             min_wpts=min(len(self.waypoints),LOOKAHEAD_WPS+car_index)
             ahead_wpts =deepcopy(self.waypoints[car_index : min_wpts])
@@ -108,29 +131,7 @@ class WaypointUpdater(object):
             self.sub_waypoints.unregister()
     
         
-    def get_closest_waypoint_idx(self):
-        ##return index of the closest waypoints in the list
-        closest_gap = float('inf')
-        closest_index =0
-        p0 = self.pose.position
-       
-       
-        for i,waypoint in enumerate(self.waypoints):
-            #calculate distances
-            p1 = waypoint.pose.pose.position
-            gap = (p0.x-p1.x)**2 + (p0.y - p1.y)**2
-            if gap<closest_gap:
-                closest_gap,closest_index = gap, i
 
-        shift_x = self.waypoints[closest_index].pose.pose.position.x-self.pose.x
-        shift_y = self.waypoints[closest_index].pose.pose.position.y-self.pose.y
-            
-        #do coordinate system transformation
-        shift = shift_x*cos(0 - self.theta) - shift_y*sin(0 - self.theta)
-        if shift <=0:
-            closest_index+=1
-        
-        return closest_index
             
             
                 
