@@ -107,8 +107,7 @@ class WaypointUpdater(object):
         # TODO: Implement
         self.count += 1
         self.pose = msg.pose
-#        self.position = self.pose.position
-#        self.orientation = self.pose.orientation
+        self.orientation = self.pose.orientation
         euler = tf.transformations.euler_from_quaternion([self.orientation.x,
                                                           self.orientation.y,
                                                           self.orientation.z,
