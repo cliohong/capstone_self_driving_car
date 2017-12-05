@@ -101,13 +101,16 @@ class DBWNode(object):
             
             if not all_available:
                 continue
-        
-#        if len(self.waypoints) >= dbw_helper.POINTS_TO_FIT:
+            
+            target_velocity = self.waypoints[0].twist.twist.linear.x
+
+            # if len(self.waypoints) >= dbw_helper.POINTS_TO_FIT:
             self.cte = dbw_helper.cte(self.pose, self.waypoints)
             
             yaw_steer = self.yaw_controller.get_steering(self.linear_velocity, self.angular_velocity, self.current_linear_velocity)
             
-            throttle, brake, steer = self.controller.control(self.linear_velocity,
+            throttle, brake, steer = self.controller.control(#self.linear_velocity,
+                                                 target_velocity,
                                                                 self.angular_velocity,
                                                             self.current_linear_velocity,
                                                             self.dbw_enabled, self.cte)
