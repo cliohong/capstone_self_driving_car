@@ -85,15 +85,25 @@ class DBWNode(object):
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb)
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
         rospy.Subscriber('/final_waypoints', Lane, self.waypoints_cb, queue_size=1)
+
         self.loop()
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
+        
         while not rospy.is_shutdown():
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
-            cte = dbw_helper.cte(self.pose, self.waypoints)
-            self.cte = cte
+
+            data = [self.waypoints, self.pose]
+            all_available = all([x is not None for x in data])
+            
+            if not all_available:
+                continue
+        
+#        if len(self.waypoints) >= dbw_helper.POINTS_TO_FIT:
+            self.cte = dbw_helper.cte(self.pose, self.waypoints)
+            
             yaw_steer = self.yaw_controller.get_steering(self.linear_velocity, self.angular_velocity, self.current_linear_velocity)
             
             throttle, brake, steer = self.controller.control(self.linear_velocity,
