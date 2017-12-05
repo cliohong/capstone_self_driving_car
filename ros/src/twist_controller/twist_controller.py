@@ -2,6 +2,7 @@ from lowpass import LowPassFilter
 from pid import PID
 import numpy as np
 
+
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
 
@@ -15,9 +16,11 @@ class Controller(object):
         self.steer_ratio=args[3]
         self.init_time = 0.03
         self.lowpss = LowPassFilter(self.accel_limit,self.init_time)
+        #override filter. it includes lag
+        self.lowpss= None
         self.pid = PID(2.0, 0.4, 0.1, mn=self.max_braking_percentage, mx=self.max_throttle_percentage)
         
-        pass
+        
 
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
@@ -28,7 +31,9 @@ class Controller(object):
             self.target_linear_velocity = args[0]
             self.target_angular_velocity = args[1]
             self.curr_linear_velocity = args[2]
-            steer = self.target_angular_velocity*self.steer_ratio
+            self.cte = args[4]
+            steer =self.pid.step(self.cte, self.init_time)
+#            steer = self.target_angular_velocity*self.steer_ratio
             throttle = 0.0
             brake = 0.0
             if abs(self.target_linear_velocity > abs(self.curr_linear_velocity)):
