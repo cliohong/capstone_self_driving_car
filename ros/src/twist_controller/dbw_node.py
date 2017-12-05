@@ -131,7 +131,7 @@ class DBWNode(object):
         print(" ")
     
     def pose_cb(self, msg):
-        self.pose = mgs.pose
+        self.pose = msg.pose
     
     def waypoints_cb(self, msg):
         self.waypoints = msg.waypoints
