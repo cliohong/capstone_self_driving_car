@@ -49,6 +49,7 @@ class DBWNode(object):
         self.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         self.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
         self.min_speed = rospy.get_param('~min_speed', 4*0.44704)
+        self.max_acc = rospy.get_param('~max_acc', 1.8)
         self.max_throttle_percentage = rospy.get_param('~max_throttle_percentage',0.1)
         self.max_braking_percentage = rospy.get_param('~max_breaking_percentage',-0.1)
         self.dbw_enabled = False
@@ -73,7 +74,7 @@ class DBWNode(object):
 
         
         # TODO: Create `TwistController` object
-        self.controller = Controller(self.accel_limit, self.max_throttle_percentage,self.max_braking_percentage,self.steer_ratio)
+        self.controller = Controller(self.vehicle_mass, self.wheel_radius, self.accel_limit, self.decel_limit,self.brake_deadband,self.fuel_capacity,self.max_throttle_percentage,self.max_braking_percentage,self.steer_ratio, self.max_acc)
 
         self.yaw_controller =YawController(self.wheel_base,self.steer_ratio,self.min_speed,self.max_lat_accel ,self.max_steer_angle)
     
