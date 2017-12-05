@@ -125,10 +125,10 @@ class WaypointUpdater(object):
         # TODO: Implement
         self.waypoints = msg.waypoints
 
-        if self.waypoints is None:
-            #cut down on resource usage
-            self.sub_waypoints.unregister()
-    
+#        if self.waypoints is None:
+#            #cut down on resource usage
+#            self.sub_waypoints.unregister()
+
         
 
             
