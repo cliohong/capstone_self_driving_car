@@ -1,136 +1,182 @@
 #!/usr/bin/env python
-#-------------------------------------------------------------------------------
-# Author: Mithi Sevilla <mithi.sevilla@gmail.com>
-# Author: Maurice Loskyll <maurice@loskyll.de>
-# Author: Lukasz Janyst <lukasz@jany.st>
-# Date:   15.09.2017
-#-------------------------------------------------------------------------------
-
-"""
-This node publishes waypoints from the car's current position
-to some distance ahead with respective target speeds for each waypoint.
-"""
 
 import rospy
-
+from geometry_msgs.msg import TwistStamped, PoseStamped
+from styx_msgs.msg import Lane, Waypoint
+import tf
 from std_msgs.msg import Int32
-from geometry_msgs.msg import PoseStamped
-from styx_msgs.msg import Lane
-import waypoint_helper
+import numpy as np
+from copy import deepcopy
+import math
 
-LOOKAHEAD_WPS = 200 #: Number of waypoints we will publish
-STALE_TIME = 1
+'''
+This node will publish waypoints from the car's current position to some `x` distance ahead.
 
-#-------------------------------------------------------------------------------
+As mentioned in the doc, you should ideally first implement a version which does not care
+about traffic lights or obstacles.
+
+Once you have created dbw_node, you will update this node to use the status of traffic lights too.
+
+Please note that our simulator also provides the exact location of traffic lights and their
+current status in `/vehicle/traffic_lights` message. You can use this message to build this node
+as well as to verify your TL classifier.
+
+TODO (for Yousuf and Aaron): Stopline location for each traffic light.
+'''
+
+LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+#states
+INIT = 0
+MPS = 0.44704
+
 class WaypointUpdater(object):
-    """
-    Given the position and map this object publishes
-    points with target velocities representing path ahead
-    """
-
-    #---------------------------------------------------------------------------
     def __init__(self):
-        """Initialize Waypoint Updater"""
-
         rospy.init_node('waypoint_updater')
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
-        rospy.Subscriber('/base_waypoints', Lane, self.base_waypoints_cb, queue_size=1)
-        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+#        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
+
+        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
         self.car_index_pub = rospy.Publisher('car_index', Int32, queue_size=1)
 
-        self.base_waypoints = None
-        self.pose = None #: Current vehicle location + orientation
-        self.frame_id = None
-        self.previous_car_index = 0 #: Where in base waypoints list the car is
-        self.traffic_index = -1 #: Where in base waypoints list the traffic light is
-        self.traffic_time_received = rospy.get_time() #: When traffic light info was received
+        self.count = 0
+        self.current_linear_velocity = 0.0
+        self.current_angular_velocity = 0.0
+        self.pose = None
+        self.theta = None
+        self.waypoints = None
+        self.decelerate = None
+        self.state = INIT
+        self.timer = 0
+        self.limit_speed = 0.0
+        self.poly1d = None
+        self.red_light_wpt=None
 
-        self.slowdown_coefficient = rospy.get_param("~slowdown_coefficient")
-        self.stopped_distance = 0.25
-
+#        self.get_closest_waypoint_idx()
+        #start the loop
         self.loop()
+        
+        
+        # TODO: Add other member variables you need below
 
-    #---------------------------------------------------------------------------
+        rospy.spin()
+
+
     def loop(self):
-        """
-        Publishes car index and subset of waypoints with target velocities
-        """
-        rate = rospy.Rate(10)
-
+        rate = rospy.Rate(8)
+    
         while not rospy.is_shutdown():
             rate.sleep()
-
-            if self.base_waypoints is None or self.pose is None or self.frame_id is None:
+            if self.waypoints is None or self.pose is None:
                 continue
+        def get_closest_waypoint_idx(waypoints, pose):
+            ##return index of the closest waypoints in the list
+            closest_gap = float('inf')
+            closest_index =0
+            p0 = pose.position
+            
+            
+            for i,waypoint in enumerate(waypoints):
+                #calculate distances
+                p1 = waypoint.pose.pose.position
+                gap = (p0.x-p1.x)**2 + (p0.y - p1.y)**2
+                if gap<closest_gap:
+                    closest_gap,closest_index = gap, i
+            
+            shift_x = waypoints[closest_index].pose.pose.position.x- pose.x
+            shift_y = waypoints[closest_index].pose.pose.position.y- pose.y
+            
+            #do coordinate system transformation
+            shift = shift_x*cos(0 - self.theta) - shift_y*sin(0 - self.theta)
+            if shift <=0:
+                closest_index+=1
+                    
+            return closest_index
+            
+            #where car is located at
+            car_index = get_closest_waypoint_idx(self.waypoints,self.pose)
+            #get subset waypoints ahead
+            min_wpts=min(len(self.waypoints),LOOKAHEAD_WPS+car_index)
+            ahead_wpts =deepcopy(self.waypoints[car_index : min_wpts])
+    
+            for idx, waypoint in enumerate(ahead_wpts):
+                waypoint.twist.twist.linear.x= self.get_waypoint_velocity(self.waypoints[car_index+idx])
 
-            # Where in base waypoints list the car is
-            car_index = waypoint_helper.get_closest_waypoint_index(self.pose, self.base_waypoints)
-
-            # Get subset waypoints ahead
-            lookahead_waypoints = waypoint_helper.get_next_waypoints(self.base_waypoints,
-                                                                     car_index, LOOKAHEAD_WPS)
-
-            # Traffic light must be new and near ahead
-            is_new = rospy.get_time() - self.traffic_time_received < STALE_TIME
-            is_near_ahead = False
-
-            if (self.traffic_index - car_index) > 0:
-                d = waypoint_helper.distance(self.base_waypoints, car_index, self.traffic_index)
-                car_wp = self.base_waypoints[car_index]
-                if d < car_wp.twist.twist.linear.x ** self.slowdown_coefficient:
-                    is_near_ahead = True
-
-            # Set target speeds
-            if is_new and is_near_ahead:
-                # Slow down and stop
-                for i, waypoint in enumerate(lookahead_waypoints):
-                    _, waypoint.twist.twist.linear.x = self.get_distance_speed_tuple(car_index + i)
-
-            # Publish
-            lane = waypoint_helper.make_lane_object(self.frame_id, lookahead_waypoints)
+            lane=Lane()
+            lane.waypoints=ahead_wpts
+            lane.header.stamp =rospy.Time.now()
             self.final_waypoints_pub.publish(lane)
             self.car_index_pub.publish(car_index)
 
-    #---------------------------------------------------------------------------
+#
+#def make_lane_object(self, frame_id,waypoints):
+#    lane = Lane()
+#    lane.header.frame_id = fram_id
+#        lane.waypoints=waypoints
+#        lane.header.stamp = rospy.Time.now()
+#        return lane
+
     def pose_cb(self, msg):
-        """ Update vehicle location """
-        self.pose = msg.pose # store location (x, y)
-        self.frame_id = msg.header.frame_id
+        # TODO: Implement
+        self.count += 1
+        self.pose = msg.pose
+        self.orientation = self.pose.orientation
+        euler = tf.transformations.euler_from_quaternion([self.orientation.x,
+                                                          self.orientation.y,
+                                                          self.orientation.z,
+                                                          self.orientation.w])
+        self.theta = euler[2]
+        if self.state == INIT:
+            print("INITIALIZING TRAFFIC LIGHT DETECTOR ....")
 
-    #---------------------------------------------------------------------------
-    def base_waypoints_cb(self, msg):
-        """ Store the given map """
-        self.base_waypoints = msg.waypoints
+#    def get_velocity_and_distance(self,  index):
+#        self.current_linear_velocity  = msg.twist.linear.x
+#        self.current_angular_velocity = msg.twist.angular.z
 
-    #---------------------------------------------------------------------------
+    def waypoints_cb(self, msg):
+        
+        # TODO: Implement
+        self.waypoints = msg.waypoints
+
+#        if self.waypoints is None:
+#            #cut down on resource usage
+#            self.sub_waypoints.unregister()
+
+        
+
+            
+            
+                
+                
+
     def traffic_cb(self, msg):
-        """
-        Consider traffic light when setting waypoint velocity
-        """
-        self.traffic_index = msg.data
-        self.traffic_time_received = rospy.get_time()
+        # TODO: Callback for /traffic_waypoint message. Implement
+        pass
 
-    #---------------------------------------------------------------------------
-    def get_distance_speed_tuple(self, index):
-        """
-        Return tuple of distance from traffic light
-        and target speed for slowing down
-        """
-        d = waypoint_helper.distance(self.base_waypoints, index, self.traffic_index)
-        car_wp = self.base_waypoints[index]
-        car_speed = car_wp.twist.twist.linear.x
-        speed = 0.0
+    def obstacle_cb(self, msg):
+        # TODO: Callback for /obstacle_waypoint message. We will implement it later
+        pass
 
-        if d > self.stopped_distance:
-            speed = (d - self.stopped_distance) * (car_speed ** (1-self.slowdown_coefficient))
+    def get_waypoint_velocity(self, waypoint):
+        return waypoint.twist.twist.linear.x
 
-        if speed < 1.0:
-            speed = 0.0
-        return d, speed
+    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
+        waypoints[waypoint].twist.twist.linear.x = velocity
 
-#-------------------------------------------------------------------------------
+    def distance(self, waypoints, wp1, wp2):
+        dist = 0
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(wp1, wp2+1):
+            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
+            wp1 = i
+        return dist
+
+
+
 if __name__ == '__main__':
     try:
         WaypointUpdater()
