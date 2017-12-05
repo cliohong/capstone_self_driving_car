@@ -37,7 +37,7 @@ class Controller(object):
             throttle = 0.0
             brake = 0.0
             if abs(self.target_linear_velocity > abs(self.curr_linear_velocity)):
-                if self.desired_linear_velocity < 0:
+                if self.target_linear_velocity < 0:
                     throttle = -0.01
                 else:
                     throttle_thresh = np.min(4*[1 - ((self.curr_linear_velocity - 0.1)/self.target_linear_velocity)],self.max_throttle_percentage)
