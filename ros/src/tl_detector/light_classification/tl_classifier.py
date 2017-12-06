@@ -1,33 +1,116 @@
 from styx_msgs.msg import TrafficLight
-
+import urllib
+import os
+from collections import namedtuple
+import cv2
 import tensorflow as tf
 import numpy as np
 
+CLASSIFIER_MODEL = 'https://s3-eu-west-1.amazonaws.com/ljanyst-udacity/traffic-lights-classifier.pb'
+DETECTOR_MODEL = 'https://s3-eu-west-1.amazonaws.com/ljanyst-udacity/traffic-lights-detector-faster-r-cnn.pb'
+
+Box = namedtuple('BBox',['score', 'xmin','xmax','ymin','ymax'])
+Size = namedtuple('Size',['w','h'])
+
+def decode_boxes(img_size, boxes, scores,threshold):
+    scores = scores[scores>threshold]
+    bboxes = []
+    for i, box in enumerate(boxes[:len(scores)]):
+        bbox=Box(scores[i], int(img_size.w*box[1]), int(img_size.w*box[3]),
+                 int(img_size.h*box[0]),int(img_size.h*box[2]))
+        bboxes.append(bbox)
+    return bboxes
+
 class TLClassifier(object):
-    def __init__(self, model_path):
-        #DONE load classifier model and restore weights
-        self.tf_session = None
-        self.predict = None
-        self.model_path = model_path
-
-    # scale the image features from -1 to 1 for the classifier
-    def scale(self, x, feature_range=(-1, 1)):
-        """Rescale the image pixel values from -1 to 1
-
-        Args:
-            image (cv::Mat): image containing the traffic light
-
-        Returns:
-            image (cv::Mat): image rescaled from -1 to 1 pixel values
-
-        """
-        # scale to (-1, 1)
-        x = ((x - x.min())/(255 - x.min()))
+    UNKNOWN = 0
+    GREEN = 1
+    YELLOW = 2
+    RED = 3
     
-        # scale to feature_range
-        min, max = feature_range
-        x = x * (max - min) + min
-        return x
+
+    def __init__(self, datadir):
+        #TODO load classifier
+        self.datadir = datadir
+        self.classifier_graph=self.datadir+'/'
+                               +os.path.basename(CLASSIFIER_MODEL)
+        self.detector_graph = self.datadir+'/'+os.path.basename(DETECTOR_MODEL)
+        
+        self.session = None
+        self.det_input = None
+        self.det_boxes =None
+        self.det_scores = None
+        self.class_input = None
+        self.class_prediction = None
+        self.class_keep_prob = None
+
+#---------------------------------------------------------------------------
+    def need_models(self):
+        """
+        Check if the model graphs need to be downloaded from the web
+        """
+        for graph in [self.classifier_graph, self.detector_graph]:
+            if not os.path.exists(graph):
+                return True
+        return False
+
+#---------------------------------------------------------------------------
+    def download_models(self):
+        """
+        Download the models from the web
+        """
+        urllib.urlretrieve(CLASSIFIER_MODEL, self.classifier_graph)
+        urllib.urlretrieve(DETECTOR_MODEL, self.detector_graph)
+
+
+    def initialize(self):
+        """
+            Initialize the classifier - starts the TensorFlow session and makes
+            sure it allocates all the necessary memory
+            """
+#        config = tf.ConfigProto(log_device_placement=False)
+#        config.gpu_options.allow_growth = True
+#        config.gpu_options.per_process_gpu_memory_fraction = 0.9
+        self.session = tf.Session(config=config)
+        sess = self.session
+        
+        #-----------------------------------------------------------------------
+        # Read the detector metagraph
+        #-----------------------------------------------------------------------
+        detector_graph_def = tf.GraphDef()
+        with open(self.detector_graph, 'rb') as f:
+            serialized = f.read()
+            detector_graph_def.ParseFromString(serialized)
+        
+        #-----------------------------------------------------------------------
+        # Read the classifier metagraph
+        #-----------------------------------------------------------------------
+        classifier_graph_def = tf.GraphDef()
+        with open(self.classifier_graph, 'rb') as f:
+            serialized = f.read()
+            classifier_graph_def.ParseFromString(serialized)
+        
+        #-----------------------------------------------------------------------
+        # Set the detector up
+        #-----------------------------------------------------------------------
+        tf.import_graph_def(detector_graph_def, name='detector')
+        self.det_input = sess.graph.get_tensor_by_name('detector/image_tensor:0')
+        self.det_boxes = sess.graph.get_tensor_by_name('detector/detection_boxes:0')
+        self.det_scores = sess.graph.get_tensor_by_name('detector/detection_scores:0')
+        
+        #-----------------------------------------------------------------------
+        # Set the classifier up
+        #-----------------------------------------------------------------------
+        tf.import_graph_def(classifier_graph_def, name='classifier')
+        self.class_input = sess.graph.get_tensor_by_name('classifier/data/images:0')
+        self.class_prediction = sess.graph.get_tensor_by_name('classifier/predictions/prediction_class:0')
+        self.class_keep_prob = sess.graph.get_tensor_by_name('classifier/dropout_keep_probability:0')
+        
+        #-----------------------------------------------------------------------
+        # Push some dummy data throught the classifier to make sure that
+        # TensorFlow has allocated all the data structs
+        #-----------------------------------------------------------------------
+        fake_img = np.zeros((512, 512, 3), dtype=np.uint8)
+                self.classify(fake_img)
 
     def get_classification(self, image):
         """Determines the color of the traffic light in the image
@@ -36,34 +119,35 @@ class TLClassifier(object):
             image (cv::Mat): image containing the traffic light
 
         Returns:
-            int: ID of traffic light color (specified in styx_msgs/TrafficLight)
+            int: ID of traffic light co
+            lor (specified in styx_msgs/TrafficLight)
 
         """
-        #DONE implement light color prediction
-        # Our final model is based on a Generative Adversarial Network (GAN) model classifier.
-        # We do not have to tranform the image to the traffic light, because this GAN classifier
-        # will classify the entire 800x600 image.
+        #TODO implement light color prediction
+        def classify(self, img):
+            sess =self.session
+            #detect boxes
+            img_expanded = np.expand_dims(img, axis = 0)
+            boxes,scores = sess.run([self.det_boxes, self.det_scores],
+                                    feed_dict={self.det_input: img_expanded})
+                                    img_size = Size(img.shape[1],img.shape[0])
+                                    detected_boxes = decode_boxes(img_size, boxes[0],scores[0],0.7)
 
-        # set up tensorflow and traffic light classifier
-        if self.tf_session is None:
-            # get the traffic light classifier
-            self.config = tf.ConfigProto(log_device_placement=True)
-            self.config.gpu_options.per_process_gpu_memory_fraction = 0.2  # don't hog all the VRAM!
-            self.config.operation_timeout_in_ms = 50000 # terminate anything that don't return in 50 seconds
-            self.tf_session = tf.Session(config=self.config)
-            self.saver = tf.train.import_meta_graph(self.model_path + '/checkpoints/generator.ckpt.meta')
-            self.saver.restore(self.tf_session, tf.train.latest_checkpoint(self.model_path + '/checkpoints/'))
+            #classify boxes
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            boxes=[]
+            for box in detected_boxes:
+                img_light = img[box.ymin:box.ymax, box.xmin:box.xmax]
+                img_light = cv2.resize(img_light,(32,32))
+                img_light_expanded = np.expand_dims(img_light, axis=0)
+                light_class = sess.run(self.class_prediction,
+                        feed_dict={self.class_input:img_light_expanded,
+                                       self.class_keep_prob:1.})
 
-            # get the tensors we need for doing the predictions by name
-            self.tf_graph = tf.get_default_graph()
-            self.input_real = self.tf_graph.get_tensor_by_name("input_real:0")
-            self.drop_rate = self.tf_graph.get_tensor_by_name("drop_rate:0")
-            self.predict = self.tf_graph.get_tensor_by_name("predict:0")
+                boxes.append((box,light_class[0]))
+           
+            if not boxes:
+                return Classifier.UNKNOWN
 
-        predict = [ TrafficLight.RED ]
-        if self.predict is not None:
-            predict = self.tf_session.run(self.predict, feed_dict = {
-                self.input_real: self.scale(image.reshape(-1, 600, 800, 3)),
-                self.drop_rate:0.})
+            return boxes[0][1]
 
-        return int(predict[0])
