@@ -23,7 +23,7 @@ class Controller(object):
         self.vehicle_mass = args[0] + self.fuel_capacity*GAS_DENSITY
         self.init_time = 0.02
         self.lowpss = LowPassFilter(self.accel_limit,self.init_time)
-        self.pid = PID(.6, 0.003, 0.1, mn=self.max_braking_percentage, mx=self.max_throttle_percentage)
+        self.pid = PID(.6, 0.003, 0.25, mn=self.max_braking_percentage, mx=self.max_throttle_percentage)
         #max torque corresponding to max throttle value of 1.0
         self.max_acc_torque = self.vehicle_mass* self.max_acc *self.wheel_radius
         #max brake torque corresponding to deceleration limit
@@ -40,7 +40,6 @@ class Controller(object):
             self.curr_linear_velocity = args[2]
             self.cte = args[4]
             steer =self.pid.step(self.cte, self.init_time)
-    #            steer = self.target_angular_velocity*self.steer_ratio
             throttle = 0.0
             brake = 0.0
             #calculate vel difference that needs to modify
