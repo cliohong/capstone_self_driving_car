@@ -34,36 +34,36 @@ class Controller(object):
         # Return throttle, brake, steer
         limit_time = 0.5
         self.dbw_enabled = args[3]
-#        if self.dbw_enabled:
-        self.target_linear_velocity = args[0]
-        self.target_angular_velocity = args[1]
-        self.curr_linear_velocity = args[2]
-        self.cte = args[4]
-        steer =self.pid.step(self.cte, self.init_time)
-#            steer = self.target_angular_velocity*self.steer_ratio
-        throttle = 0.0
-        brake = 0.0
-        #calculate vel difference that needs to modify
-        error = self.target_angular_velocity - self.curr_linear_velocity
-        #apply limits to acceleration
-        acceleration = error / limit_time
-        
-        if acceleration > 0 :
-            acceleration = min(self.accel_limit, acceleration)
-        else:
-            acceleration = max(self.decel_limit,acceleration)
+        if self.dbw_enabled:
+            self.target_linear_velocity = args[0]
+            self.target_angular_velocity = args[1]
+            self.curr_linear_velocity = args[2]
+            self.cte = args[4]
+            steer =self.pid.step(self.cte, self.init_time)
+    #            steer = self.target_angular_velocity*self.steer_ratio
+            throttle = 0.0
+            brake = 0.0
+            #calculate vel difference that needs to modify
+            error = self.target_linear_velocity - self.curr_linear_velocity
+            #apply limits to acceleration
+            acceleration = error / limit_time
+            
+            if acceleration > 0 :
+                acceleration = min(self.accel_limit, acceleration)
+            else:
+                acceleration = max(self.decel_limit,acceleration)
         
         #under deadband condition, there is no controls
 #            if abs(acceleration)<self.brake_deadband:
 #                return throttle, brake, steer
 
-        #calculate torque = M * acc *R
-        torque = vehicle_mass * acceleration * self.wheel_radius
-        
-        if torque >0 :
-            throttle, brake = min(1.,torque/self.max_acc_torque), 0.0
-        else:
-            throttle, brake = 0.0, min(abs(torque),self.max_brake_torque)
+            #calculate torque = M * acc *R
+            torque = vehicle_mass * acceleration * self.wheel_radius
+
+            if torque >0 :
+                throttle, brake = min(1.,torque/self.max_acc_torque), 0.0
+            else:
+                throttle, brake = 0.0, min(abs(torque),self.max_brake_torque)
 
 #            if abs(self.target_linear_velocity > abs(self.curr_linear_velocity)):
 #                if self.target_linear_velocity < 0:
@@ -82,10 +82,10 @@ class Controller(object):
 #            if throttle < 0. :
 #                brake = -throttle
 #                throttle = 0.
-        return throttle,brake, steer
+            return throttle,brake, steer
         
-#        else:
-#            self.pid.reset()
-#
-#        return 0., 0., 0.
+        else:
+            self.pid.reset()
+
+        return 0., 0., 0.
 
