@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 from timeit import default_timer as timer
 from scipy.ndimage.measurements import label
+import rospy
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 DETECTOR_MODEL = 'detector_graph.pb'
@@ -45,7 +46,7 @@ class TLClassifier(object):
         config.gpu_options.allow_growth = True
         config.gpu_options.per_process_gpu_memory_fraction = 0.9
         self.session = tf.Session(config = config)
-        
+        sess=self.session
         #-----------------------------------------------------------------------
         # Read the detector metagraph
         #-----------------------------------------------------------------------
@@ -55,10 +56,10 @@ class TLClassifier(object):
             detector_graph_def.ParseFromString(serialized)
 
 
-        tf.import_graph_def(classifier_graph_def, name='detector')
+        tf.import_graph_def(detector_graph_def, name='detector')
         self.class_input = sess.graph.get_tensor_by_name('detector/data/images:0')
         self.class_prediction = sess.graph.get_tensor_by_name('detector/predictions/prediction_class:0')
-        self.class_keep_prob = sess.graph.get_tensor_by_name('detector/dropout_keep_prob:0')
+        self.class_keep_prob = sess.graph.get_tensor_by_name('detector/keep_prob:0')
         
         #-----------------------------------------------------------------------
         # Push some dummy data throught the classifier to make sure that
@@ -88,7 +89,7 @@ class TLClassifier(object):
         
         #RUN PREDICTION
         start_time = timer()
-        light_class = sess.run(self.class_prediction,
+        light_class = sess.run([self.class_prediction],
                                feed_dict={self.class_input:[resized_img],
                                self.class_keep_prob:1.})
         light_class = np.array(light_class[0][0,:,:,:],dtype = np.uint8)

@@ -183,7 +183,7 @@ class TLDetector(object):
         if len(self.waypoints) == 0:
             rospy.logdebug("waypoints array is not set")
             return -1
-        if self.pose = None:
+        if self.pose == None:
             rospy.logdebug("Pose is not set")
             return -1
 
@@ -228,7 +228,7 @@ class TLDetector(object):
         if 0 < (light_idx - self.car_index) and (light_idx - self.car_index)<=120:
 
             rospy.logwarn("Traffic light in range StopLine_WP: {}, Car_WP: {}".format(light_idx, self.car_index))
-            return light_index
+            return light_idx
  
 
         return -1

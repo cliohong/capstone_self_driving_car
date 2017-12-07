@@ -100,7 +100,7 @@ class DBWNode(object):
             if not all_available:
                 continue
             
-            target_velocity = 70. #self.waypoints[0].twist.twist.linear.x
+            target_velocity = 30. #self.waypoints[0].twist.twist.linear.x
 
             self.cte = dbw_helper.cte(self.pose, self.waypoints)
             
@@ -112,7 +112,7 @@ class DBWNode(object):
                                                             self.current_linear_velocity,
                                                             self.dbw_enabled, self.cte)
             if self.dbw_enabled:
-               self.publish(throttle, brake, steer+.98 * yaw_steer)
+               self.publish(throttle, brake, steer+ 1. * yaw_steer)
         
             rate.sleep()
 
