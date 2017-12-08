@@ -97,7 +97,7 @@ class TLDetector(object):
                     #self.nwp = self.nextWaypoint(self.pose)
                     self.next_traffic_light_wpt = self.get_next_light_waypoint()#self.getNextLightWaypoint(LOOKAHEAD_WPS)
                     if self.next_traffic_light_wpt is not None and self.sub_raw_image is None:
-                            self.sub_raw_image = rospy.Subscriber(self.camera_topic,Image,self.image_cb)
+                            self.sub_raw_image = rospy.Subscriber('/image_color', Image, self.image_cb)
                     elif self.next_traffic_light_wpt is None and self.sub_raw_image is not None:
                             self.sub_raw_image.unregister()
                             self.sub_raw_image = None
@@ -193,7 +193,7 @@ class TLDetector(object):
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
         rospy.logwarn("state:= {}".format(state))
-        rospy.logwarn("TL WP:={}."format(light_wp))
+        rospy.logwarn("TL WP:={}".format(light_wp))
 
         '''
         Publish upcoming red lights at camera frequency.
@@ -202,7 +202,7 @@ class TLDetector(object):
         used.
         '''
         if self.state != state:
-            slef.state_count = 0
+            self.state_count = 0
             self.state = state
         elif self.state_count >  STATE_COUNT_THRESHOLD:
             self.last_state = self.state
@@ -330,7 +330,7 @@ class TLDetector(object):
         if light is None:
             return None
 
-        if 0 < (light_idx - self.car_index) and (light_idx - self.car_index)<=120:
+        if 0 < (light_idx - self.car_index) and (light_idx - self.car_index)<=180:
 
 #            rospy.logwarn("Traffic light in range StopLine_WP: {}, Car_WP: {}".format(light_idx, self.car_index))
             self.in_range =True
@@ -354,7 +354,7 @@ class TLDetector(object):
             return TrafficLight.RED
         
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8") #"bgr8"
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8") #"rgb8"
         #get bounding box of traffic light which has been detected
         
         classification = {TrafficLight.RED: 0 , TrafficLight.YELLOW: 0 ,
@@ -367,12 +367,12 @@ class TLDetector(object):
             x2 = box[1][0]
             y2 = box[1][1]
             pred_img = cv_image[y1:y2,x1:x2]
-        #skip small images to avoid false positive
-        MIN_IMG_HEIGHT = 20
-        if pred_img.shape[0]>MIN_IMG_HEIGHT:
+            #skip small images to avoid false positive
+            MIN_IMG_HEIGHT = 10
+            if pred_img.shape[0]>MIN_IMG_HEIGHT:
 
-            light_class = self.light_classifier.get_classification(pred_img)
-            classification[light_class]+=1
+                light_class = self.light_classifier.get_classification(pred_img)
+                classification[light_class]+=1
         
         light_state = max(classification, key = classification.get)
         return light_state
@@ -390,7 +390,7 @@ class TLDetector(object):
     
         if self.init:
             return -1, TrafficLight.UNKNOWN
-        elif self.next_traffic_light_wpt:
+        elif self.next_traffic_light_wpt is not None:
             state = self.get_light_state()
             return self.next_traffic_light_wpt, state
         return -1, TrafficLight.UNKNOWN
