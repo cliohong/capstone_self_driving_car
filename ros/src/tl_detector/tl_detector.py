@@ -142,7 +142,7 @@ class TLDetector(object):
                                     self.orientation.y,
                                     self.orientation.z,
                                     self.orientation.w])
-        rospy.logwarn("Initialize the traffic light detector....")
+                                    #rospy.logwarn("Initialize the traffic light detector....")
         
         self.theta = euler[2]
 
@@ -406,6 +406,14 @@ class TLDetector(object):
 #            return light_wp, state
 #        self.waypoints = None
 #        return -1, TrafficLight.UNKNOWN
+
+    def distance(self, waypoints, wp1, wp2):
+        dist = 0
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(wp1, wp2+1):
+            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
+            wp1 = i
+        return dist
 
 if __name__ == '__main__':
     try:
