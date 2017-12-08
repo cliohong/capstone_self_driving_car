@@ -35,7 +35,7 @@ class TLClassifier(object):
         self.class_input = None
         self.class_prediction = None
         self.class_keep_prob = None
-        self.image_shape =(288,384)
+        self.img_size =(288,384)
 
     def initialize(self):
         """
