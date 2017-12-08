@@ -95,7 +95,7 @@ class TLDetector(object):
         while not rospy.is_shutdown():
             if not self.init:
                 if self.waypoints and self.theta:
-                    self.nwp = self.next_traffic_Light_wpt()
+                    self.nwp = self.nextWaypoint(self.pose)
                     self.next_traffic_light_wpt = self.getNextLightWaypoint(LOOKAHEAD_WPS)
                     if self.next_traffic_light_wpt is not None and self.sub_raw_image is None:
                             self.sub_raw_image = rospy.Subscriber(self.camera_topic,Image,self.image_cb)
@@ -104,6 +104,9 @@ class TLDetector(object):
                             self.sub_raw_image = None
                             self.last_wp = -1
                             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            elif self.light_classifier is None:
+                self.upcoming_red_light_pub.publish(Int32(-1))
+                                    
             rate.sleep()
 
 #        if self.waypoints is None or self.car_index is None:
@@ -163,7 +166,7 @@ class TLDetector(object):
                 d1 = dl(self.waypoints[y].pose.pose.position,
                         self.config['stop_line_positions'][x])
                 if dist > d1:
-                    light_wp = x1
+                    light_wp = x
                     dist = d1
             self.traffic_light_to_wpt_map.append(light_wp)
         
