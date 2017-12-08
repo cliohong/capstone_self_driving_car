@@ -50,7 +50,7 @@ class TLDetector(object):
         self.init = False
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
-        self.camera_topic = rospy.get_param('~camera_topic')
+        #self.camera_topic = rospy.get_param('~camera_topic')
         #cached positions of stop lines in front of traffic lights
 #        self.stop_line_positions=[Point(x,y) for x,y in self.config['stop_line_positions']]
 #        self.closest_stop_line_index = None
@@ -77,13 +77,13 @@ class TLDetector(object):
         #rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         
         #rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
-        self.sub_raw_image = rospy.Subscriber(self.camera_topic, Image, self.image_cb)
+        self.sub_raw_image = rospy.Subscriber('/image_color', Image, self.image_cb)
 
         rospy.Subscriber('/car_index', Int32,self.car_index_cb, queue_size=1)
 
 #self.camera_info = self.config['camera_info']
                       
-        self.upcoming_red_light_pub = rospy.Publischer('/traffic_waypoint', Int32, queue_size=1)
+        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
         
         self.loop()
 
@@ -156,12 +156,12 @@ class TLDetector(object):
    # List of positions that correspond to the line to stop in front of for a given intersection
    
         #initialize lights to waypoint map
-        for x in range(len(self.config['light_position'])):
+        for x in range(len(self.config['stop_line_positions'])):
             dist = float('inf')
             light_wpt = 0
             for y in range(len(self.waypoints)):
                 d1 = dl(self.waypoints[y].pose.pose.position,
-                        self.config['light_positions'][x])
+                        self.config['stop_line_positions'][x])
                 if dist > d1:
                     light_wp = x1
                     dist = d1
@@ -363,14 +363,15 @@ class TLDetector(object):
         MIN_IMG_HEIGHT = 20
         if pred_img.shape[0]<MIN_IMG_HEIGHT:
             rospy.loginfo("image detected is too small:false positive avoided")
-            continue
+            return TrafficLight.UNKNOWN
+        else:
 
-        classification = {TrafficLight.RED: 0 , TrafficLight.YELLOW: 0 ,
-        TrafficLight.GREEN : 0, TrafficLight.UNKNOWN : 0}
-        light_class = self.light_classifier.get_classification(pred_img)
-        classification[light_class]+=1
-        light_state = max(classification, key = classification.get)
-        return light_state
+            classification = {TrafficLight.RED: 0 , TrafficLight.YELLOW: 0 ,
+            TrafficLight.GREEN : 0, TrafficLight.UNKNOWN : 0}
+            light_class = self.light_classifier.get_classification(pred_img)
+            classification[light_class]+=1
+            light_state = max(classification, key = classification.get)
+            return light_state
 
 
     def process_traffic_lights(self):
