@@ -200,7 +200,7 @@ class TLDetector(object):
         if self.state != state:
             slef.state_count = 0
             self.state = state
-        elif self.state_count > = STATE_COUNT_THRESHOLD:
+        elif self.state_count >  STATE_COUNT_THRESHOLD:
             self.last_state = self.state
             if state == TrafficLight.GREEN and light_wp is not None:
                 light_wp = - light_wp
@@ -216,54 +216,53 @@ class TLDetector(object):
             self.init = False
         
 
-def nextWaypoint(self, pose):
-    """Identifies the next path waypoint to the given position
-        https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
-        Args:
-        pose (Pose): position to match a waypoint to
-        
-        Returns:
-        int: index of the next waypoint in self.waypoints
-        
+    def nextWaypoint(self, pose):
+        """Identifies the next path waypoint to the given position
+            https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
+            Args:
+            pose (Pose): position to match a waypoint to
+            
+            Returns:
+            int: index of the next waypoint in self.waypoints
         """
-            #DONE implement
-            location = pose.position
-            dist = 100000.
-            dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-            nwp = 0
-            for i in range(len(self.waypoints)):
-                d1 = dl(location, self.waypoints[i].pose.pose.position)
-                if dist > d1:
-                        nwp = i
-                        dist = d1
-            x = self.waypoints[nwp].pose.pose.position.x
-            y = self.waypoints[nwp].pose.pose.position.y
-            heading = np.arctan2((y-location.y), (x-location.x))
-            angle = np.abs(self.theta-heading)
-            if angle > np.pi/4.:
-                nwp += 1
-                if nwp >= len(self.waypoints):
-                    nwp = 0
-            return nwp
+        #DONE implement
+        location = pose.position
+        dist = 100000.
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        nwp = 0
+        for i in range(len(self.waypoints)):
+            d1 = dl(location, self.waypoints[i].pose.pose.position)
+            if dist > d1:
+                    nwp = i
+                    dist = d1
+        x = self.waypoints[nwp].pose.pose.position.x
+        y = self.waypoints[nwp].pose.pose.position.y
+        heading = np.arctan2((y-location.y), (x-location.x))
+        angle = np.abs(self.theta-heading)
+        if angle > np.pi/4.:
+            nwp += 1
+            if nwp >= len(self.waypoints):
+                nwp = 0
+        return nwp
 
-def getNextLightWaypoint(self, number):
-    # find the closest waypoint from our pre-populated waypoint to traffic light map
-    tlwp = None
-    light = None
-    for i in range(len(self.traffic_light_to_wpt_map)):
-        # make sure its forward in our direction
-        if self.nwp < self.traffic_light_to_wpt_map[i] and tlwp is None:
-            tlwp = self.traffic_light_to_wpt_map[i] - self.nwp
-            # is it within the given number?
-            if tlwp < number-2:
-                # is it within our traffic light tracking distance of 100 meters?
-                if self.distance(self.waypoints, self.nwp, (self.nwp+tlwp)%self.waypoint_len) < 100.:
-                    
-                # set the traffic light waypoint target
-                # light = (self.nwp+tlwp)%self.wlen
-                # use relative waypoint ahead of current one instead!
-                    light = tlwp
-    return light
+    def getNextLightWaypoint(self, number):
+        # find the closest waypoint from our pre-populated waypoint to traffic light map
+        tlwp = None
+        light = None
+        for i in range(len(self.traffic_light_to_wpt_map)):
+            # make sure its forward in our direction
+            if self.nwp < self.traffic_light_to_wpt_map[i] and tlwp is None:
+                tlwp = self.traffic_light_to_wpt_map[i] - self.nwp
+                # is it within the given number?
+                if tlwp < number-2:
+                    # is it within our traffic light tracking distance of 100 meters?
+                    if self.distance(self.waypoints, self.nwp, (self.nwp+tlwp)%self.waypoint_len) < 100.:
+                        
+                    # set the traffic light waypoint target
+                    # light = (self.nwp+tlwp)%self.wlen
+                    # use relative waypoint ahead of current one instead!
+                        light = tlwp
+        return light
     
     
 #    def get_closest_waypoint_index(self, light_position):
