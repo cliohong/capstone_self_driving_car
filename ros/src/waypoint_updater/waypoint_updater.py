@@ -15,11 +15,16 @@ import rospy
 
 from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import TwistStamped
 from styx_msgs.msg import Lane
 import waypoint_helper
 
 LOOKAHEAD_WPS = 200 #: Number of waypoints we will publish
 STALE_TIME = 1
+
+def euclidean_distance(a, b):
+    """The distance between two points"""
+    return sqrt((a.x - b.x)**2 + (a.y - b.y)**2 + (a.z - b.z)**2)
 
 #-------------------------------------------------------------------------------
 class WaypointUpdater(object):
@@ -34,8 +39,9 @@ class WaypointUpdater(object):
 
         rospy.init_node('waypoint_updater')
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
-        rospy.Subscriber('/base_waypoints', Lane, self.base_waypoints_cb, queue_size=1)
+        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
         rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/current_velocity',TwisStamped, self.velocity_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
         self.car_index_pub = rospy.Publisher('car_index', Int32, queue_size=1)
@@ -43,7 +49,11 @@ class WaypointUpdater(object):
         self.base_waypoints = None
         self.pose = None #: Current vehicle location + orientation
         self.frame_id = None
+        self.closest_obs = None
+        self.current_waypoint_ahead = None
+        self.current_velocity = 0.
         self.previous_car_index = 0 #: Where in base waypoints list the car is
+     #   position fo closetst traffic light
         self.traffic_index = -1 #: Where in base waypoints list the traffic light is
         self.traffic_time_received = rospy.get_time() #: When traffic light info was received
 
@@ -98,12 +108,36 @@ class WaypointUpdater(object):
         """ Update vehicle location """
         self.pose = msg.pose # store location (x, y)
         self.frame_id = msg.header.frame_id
+        if self.base_waypoints is None:
+            return None
 
     #---------------------------------------------------------------------------
-    def base_waypoints_cb(self, msg):
+    def waypoints_cb(self, msg):
         """ Store the given map """
         self.base_waypoints = msg.waypoints
+    
+    def velocity_cb(self,msg):
+        self.velocity = msg.twist.linear.x
+    
+    def obstacle_cb(self, msg):
+        # TODO: Callback for /obstacle_waypoint message. We will implement it later
+        pass
+    
+    def get_waypoint_velocity(self, waypoint):
+        """Unwrap the waypoint to return the value of the linear speed."""
+        return waypoint.twist.twist.linear.x
+    
+    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
+        """Unwraps the waypoint object to set the value for the linear speed."""
+        waypoints[waypoint].twist.twist.linear.x = velocity
 
+    def distance(self, waypoints, wp1, wp2):
+        dist = 0
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
+        for i in range(wp1, wp2+1):
+            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
+            wp1 = i
+        return dist
     #---------------------------------------------------------------------------
     def traffic_cb(self, msg):
         """
@@ -112,23 +146,83 @@ class WaypointUpdater(object):
         self.traffic_index = msg.data
         self.traffic_time_received = rospy.get_time()
 
+    def _get_waypoint_indices(self, start_index, length):
+        """Computes a cyclic list of waypoint indices.
+            
+            Args:
+            start_index (int): Initial index of the list
+            length (int): Desired length of resulting list, defaults to length of base points list
+            
+            Returns:
+            cyclic list of waypoint indices
+            """
+                
+            # making sure that length does not overpass base waypoints length
+            length = min(self.len_base_waypoints, length)
+            
+            end_index = start_index + length
+            q, r = divmod(end_index, self.len_base_waypoints)
+                    
+            # q can either be 0 or 1
+            if q == 0:
+                return range(start_index, r)
+
+            return range(start_index, self.len_base_waypoints) + range(0, r)
+
+    def _closest_waypoint_index(self):
+        """ Computes the index of closest waypoint w.r.t current position."""
+            
+            rospy.logdebug("computing closest_waypoint_index for pos %d, %d",
+                           self.current_pose.position.x,
+                           self.current_pose.position.y)
+                
+            if self.current_waypoint_ahead is None:
+                possible_waypoint_indices
+                self._get_waypoint_indices(0,self.len_base_waypoints)
+                closest_distance = float('inf')
+
+            else:
+            possible_waypoint_indices=self._get_waypoint_indices(self.current_waypoint_ahead, LOOKAHEAD_WPS)
+            closest_distance=dl(self.base_waypoints[self.current_waypoint_ahead].pose.pose.position,self.current_pose.position)
+                   
+                prev_index = possible_waypoint_indices.pop(0)
+                closer_point_found = True
+                    
+                while closer_point_found and len(possible_waypoint_indices) > 0:
+                    index = possible_waypoint_indices.pop(0)
+                    distance = dl(self.base_waypoints[index].pose.pose.position,
+                                                         self.current_pose.position)
+                                               
+                    if distance > closest_distance:
+                         closer_point_found = False
+                    else:
+                         closest_distance = distance
+                         prev_index = index
+                                                                             
+                while is_waypoint_behind_pose(self.current_pose, self.base_waypoints[prev_index]):
+                         prev_index += 1
+                         prev_index %= self.len_base_waypoints
+                                                                                         
+                self.current_waypoint_ahead = prev_index
+                                                                                             
+                return prev_index
     #---------------------------------------------------------------------------
-    def get_distance_speed_tuple(self, index):
-        """
-        Return tuple of distance from traffic light
-        and target speed for slowing down
-        """
-        d = waypoint_helper.distance(self.base_waypoints, index, self.traffic_index)
-        car_wp = self.base_waypoints[index]
-        car_speed = car_wp.twist.twist.linear.x
-        speed = 0.0
-
-        if d > self.stopped_distance:
-            speed = (d - self.stopped_distance) * (car_speed ** (1-self.slowdown_coefficient))
-
-        if speed < 1.0:
-            speed = 0.0
-        return d, speed
+#    def get_distance_speed_tuple(self, index):
+#        """
+#        Return tuple of distance from traffic light
+#        and target speed for slowing down
+#        """
+#        d = waypoint_helper.distance(self.base_waypoints, index, self.traffic_index)
+#        car_wp = self.base_waypoints[index]
+#        car_speed = car_wp.twist.twist.linear.x
+#        speed = 0.0
+#
+#        if d > self.stopped_distance:
+#            speed = (d - self.stopped_distance) * (car_speed ** (1-self.slowdown_coefficient))
+#
+#        if speed < 1.0:
+#            speed = 0.0
+#        return d, speed
 
 #-------------------------------------------------------------------------------
 if __name__ == '__main__':

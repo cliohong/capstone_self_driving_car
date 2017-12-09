@@ -12,21 +12,6 @@ import tf
 
 from styx_msgs.msg import Lane
 
-def distance(waypoints, p1, p2):
-    """ Get total distance between two waypoints given their index"""
-    gap = 0
-
-    def euclidean_distance(a, b):
-        """The distance between two points"""
-        return sqrt((a.x - b.x)**2 + (a.y - b.y)**2 + (a.z - b.z)**2)
-
-    for i in range(p1, p2 + 1):
-        a = waypoints[p1].pose.pose.position
-        b = waypoints[i].pose.pose.position
-        gap += euclidean_distance(a, b)
-        p1 = i
-    return gap
-
 
 def make_lane_object(frame_id, waypoints):
     """Lane object contains the list of final waypoints ahead with velocity"""
@@ -75,12 +60,12 @@ def is_waypoint_behind(pose, waypoint):
     originX = pose.position.x
     originY = pose.position.y
 
-    shift_x = waypoint.pose.pose.position.x - originX
-    shift_y = waypoint.pose.pose.position.y - originY
+    shift_x = waypoint.pose.pose.position.x - pose.position.x
+    shift_y = waypoint.pose.pose.position.y - pose.position.y
 
-    x = shift_x * cos(0 - yaw) - shift_y * sin(0 - yaw)
+    shifted_rotated_x = shift_x * cos(0 - yaw) - shift_y * sin(0 - yaw)
 
-    if x > 0:
+    if shifted_rotated_x > 0:
         return False
     return True
 
