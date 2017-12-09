@@ -93,7 +93,7 @@ class TLDetector(object):
         rate = rospy.Rate(8)
         while not rospy.is_shutdown():
             if not self.init:
-                if self.waypoints and self.theta:
+                if self.waypoints:
                     #self.nwp = self.nextWaypoint(self.pose)
                     self.next_traffic_light_wpt = self.get_next_light_waypoint()
                     if self.next_traffic_light_wpt is not None and self.sub_raw_image is None:
@@ -273,12 +273,12 @@ class TLDetector(object):
             find index and location of next traffic light which should be in front
             of the car
         """
-        if len(self.waypoints) == 0:
-            rospy.logdebug("waypoints array is not set")
-            return -1
-        if self.pose == None:
-            rospy.logdebug("Pose is not set")
-            return -1
+#        if len(self.waypoints) == 0:
+#            rospy.logdebug("waypoints array is not set")
+#            return -1
+#        if self.pose == None:
+#            rospy.logdebug("Pose is not set")
+#            return -1
 
         next_light_index =float('Inf')
         next_light = None
@@ -289,7 +289,7 @@ class TLDetector(object):
 
         if next_light is None:
             return None, None
-        return int(next_light_index),next_light
+        return next_light_index,next_light
 
     def get_next_light_waypoint(self):
         """
