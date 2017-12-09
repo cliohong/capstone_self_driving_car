@@ -20,7 +20,7 @@ The model is based on semantic segmentation (FCN). The model will predict the po
 If next traffic light is out of range/in range but not Red then -1 will be published
 """
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 2
 LOOKAHEAD_WPS = 200
 Point = namedtuple('Point',['x','y'])
 
@@ -29,7 +29,7 @@ class TLDetector(object):
         rospy.init_node('tl_detector')
 
         self.pose = None
-        self.waypoints = np.array([]) #None
+        self.waypoints = None
         self.camera_image = None
         self.sub_raw_image = None
         self.theta = None
@@ -133,24 +133,16 @@ class TLDetector(object):
 #        self.base_waypoints= None
 #        dl = lambda a, b : math.sqrt((a.x - b[0])**2 + (a.y - b[1])**2)
 
+        if self.waypoints is None:
+            self.waypoints = [x.pose.pose.position for x in msg.waypoints]
 
-#self.waypoints = [x.pose.pose.position for x in msg.waypoints]
-        waypoints = np.array([])
-        for point in msg.waypoints:
-            x_coord = point.pose.pose.position.x
-            y_coord = point.pose.pose.position.y
-            waypoints = np.append(waypoints, complex(x_coord, y_coord))
-    
-        self.waypoints = waypoints
-        
-#        rospy.logwarn("tl_detector: updated {} base waypoints".format(len(self.base_waypoints_np)))
         for stop_loc in self.stop_line_positions:
             stop_index =self.get_closest_waypoint_index(stop_loc)
             self.stop_light_loc[stop_loc]=stop_index
 
 
-    def traffic_cb(self, msg):
-        self.lights = msg.lights
+#    def traffic_cb(self, msg):
+#        self.lights = msg.lights
 
     def car_index_cb(self,msg):
         self.car_index = msg.data
@@ -307,10 +299,10 @@ class TLDetector(object):
         if light is None:
             return None
 
-        if 0 < int(light_idx - self.car_index) and int(light_idx - self.car_index)<=180:
+        if 5 <= int(light_idx - self.car_index) and int(light_idx - self.car_index)<=130:
 
 #            rospy.logwarn("Traffic light in range StopLine_WP: {}, Car_WP: {}".format(light_idx, self.car_index))
-            self.in_range =True
+#            self.in_range =True
             return int(light_idx)
         return None
 
@@ -351,20 +343,11 @@ class TLDetector(object):
                     classification[light_class]+=1
                 else:
                     rospy.loginfo("too small to be detected,then ignore....")
-                        #light_state = max(classification, key = classification.get)
-                        #return light_wpt, light_state
 
-                # come to consensus about the state of traffic lights in the picture
-                result = TrafficLight.UNKNOWN
-                if classification[TrafficLight.RED] > 0:
-                    result = TrafficLight.RED
-                elif classification[TrafficLight.YELLOW] > 0:
-                    result = TrafficLight.YELLOW
-                elif classification[TrafficLight.GREEN] > 0:
-                    result = TrafficLight.GREEN
-                        
-            rospy.logwarn("detected img,result={}".format(result))
-            return light_wpt,result
+            light_state = max(classification, key = classification.get)
+            
+            rospy.logwarn("detected img,result={}".format(light_state))
+            return light_wpt,light_state
                 
         return None,TrafficLight.UNKNOWN
 

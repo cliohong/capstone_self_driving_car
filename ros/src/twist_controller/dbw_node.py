@@ -49,7 +49,7 @@ class DBWNode(object):
         self.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         self.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
         self.min_speed = rospy.get_param('~min_speed', 0.44704)
-        self.max_acc = rospy.get_param('~max_acc', .6)
+        self.max_acc = rospy.get_param('~max_acc', 1.)
         self.max_throttle_percentage = rospy.get_param('~max_throttle_percentage',1.)
         self.max_braking_percentage = rospy.get_param('~max_breaking_percentage',-1)
         self.dbw_enabled = False
