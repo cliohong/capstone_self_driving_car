@@ -11,6 +11,7 @@ import numpy as np
 import tf
 
 from styx_msgs.msg import Lane
+dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
 
 
 def make_lane_object(frame_id, waypoints):
@@ -20,20 +21,6 @@ def make_lane_object(frame_id, waypoints):
     lane.waypoints = waypoints
     lane.header.stamp = rospy.Time.now()
     return lane
-
-
-def get_Euler(pose):
-    """Returns the roll, pitch yaw angles from a Quaternion \
-    Args:
-        pose: geometry_msgs/Pose.msg
-
-    Returns:
-        roll (float), pitch (float), yaw (float)
-    """
-    return tf.transformations.euler_from_quaternion([pose.orientation.x,
-                                                     pose.orientation.y,
-                                                     pose.orientation.z,
-                                                     pose.orientation.w])
 
 
 def get_square_gap(a, b):
@@ -56,7 +43,10 @@ def is_waypoint_behind(pose, waypoint):
         bool : True if the waypoint is behind the car False if in front
 
     """
-    _, _, yaw = get_Euler(pose)
+    _, _, yaw = tf.transformations.euler_from_quaternion([pose.orientation.x,
+                                                          pose.orientation.y,
+                                                          pose.orientation.z,
+                                                          pose.orientation.w])
     originX = pose.position.x
     originY = pose.position.y
 
@@ -76,22 +66,22 @@ def get_closest_waypoint_index(pose, waypoints):
     waypoints: list of styx_msgs.msg.Waypoint instances
     returns index of the closest waypoint in the list waypoints
     """
-    best_gap = float('inf')
-    best_index = 0
+    closest_dist =  float('inf')
+    closest_index = 0
     my_position = pose.position
 
     for i, waypoint in enumerate(waypoints):
+        dist =dl(pose.position, waypoint.pose.pose.position)
+    #get_square_gap(pose.position, waypoint.pose.pose.position)
 
-        other_position = waypoint.pose.pose.position
-        gap = get_square_gap(my_position, other_position)
-
-        if gap < best_gap:
-            best_index, best_gap = i, gap
+        if dist < _closest_dist:
+            closest_index, closest_dist = i, dist
 
     is_behind = is_waypoint_behind(pose, waypoints[best_index])
-    if is_behind:
-        best_index += 1
-    return best_index
+    while is_behind:
+        closest_index += 1
+        closest_index %= len(waypoints)
+    return closest_index
 
 
 def get_next_waypoints(waypoints, i, n):
