@@ -52,7 +52,7 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
         #cached positions of stop lines in front of traffic lights
         self.stop_line_positions=[Point(x,y) for x,y in self.config['stop_line_positions']]
-        self.closest_stop_line_index = None
+        #self.closest_stop_line_index = None
         self.next_traffic_light_wpt= None
         self.nwp = None
         self.time_received = rospy.get_time()
@@ -289,7 +289,7 @@ class TLDetector(object):
 
         if next_light is None:
             return None, None
-        return next_light_index,next_light
+        return int(next_light_index),next_light
 
     def get_next_light_waypoint(self):
         """
@@ -299,13 +299,12 @@ class TLDetector(object):
         if light is None:
             return None
 
-        if 5 <= int(light_idx - self.car_index) and int(light_idx - self.car_index)<=130:
+        if 5 <= (light_idx - self.car_index) and (light_idx - self.car_index)<=120:
 
 #            rospy.logwarn("Traffic light in range StopLine_WP: {}, Car_WP: {}".format(light_idx, self.car_index))
 #            self.in_range =True
-            return int(light_idx)
+            return light_idx
         return None
-
 
     def get_light_state(self, light_wpt):
         """Determines the current color of the traffic light
@@ -321,7 +320,7 @@ class TLDetector(object):
             return TrafficLight.UNKNOWN
 
         if light_wpt is not None:
-            MIN_IMG_HEIGHT = 30
+            MIN_IMG_HEIGHT = 50
 
             cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8") #"rgb8"
             #get bounding box of traffic light which has been detected
