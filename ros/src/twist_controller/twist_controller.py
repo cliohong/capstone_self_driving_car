@@ -23,7 +23,7 @@ class Controller(object):
         self.vehicle_mass = args[0] + self.fuel_capacity*GAS_DENSITY
         self.init_time = 0.02
         self.lowpss = LowPassFilter(self.accel_limit,self.init_time)
-        self.pid = PID(.6, 0.003, 0.25, mn=self.max_braking_percentage, mx=self.max_throttle_percentage)
+        self.pid = PID(2., 0.003, 0.2, mn=self.max_braking_percentage, mx=self.max_throttle_percentage)
         #max torque corresponding to max throttle value of 1.0
         self.max_acc_torque = self.vehicle_mass* self.max_acc *self.wheel_radius
         #max brake torque corresponding to deceleration limit

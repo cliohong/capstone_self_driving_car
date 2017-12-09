@@ -29,7 +29,7 @@ class TLDetector(object):
         rospy.init_node('tl_detector')
 
         self.pose = None
-        self.waypoints = None
+        self.waypoints = np.array([]) #None
         self.camera_image = None
         self.sub_raw_image = None
         self.theta = None
@@ -59,7 +59,7 @@ class TLDetector(object):
         self.stop_light_loc={}
 #        self.traffic_light_to_wpt_map = []
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        self.base_waypoints = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        self.base_waypoints = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb,queue_size=1)
         
 
         self.light_classifier = TLClassifier()
@@ -124,30 +124,26 @@ class TLDetector(object):
         self.theta = euler[2]
 
     def waypoints_cb(self, msg):
-        if self.waypoints is None:
-            self.waypoints=[]
-            for waypoint in msg.waypoints:
-                self.waypoints.append(waypoint.pose.pose.position)
-        self.waypoint_len=len(self.waypoints)
-        self.base_waypoints.unregister()
+#        if self.waypoints is None:
+#            self.waypoints=[]
+#            for waypoint in msg.waypoints:
+#                self.waypoints.append(waypoint.pose.pose.position)
+#        self.waypoint_len=len(self.waypoints)
+#        self.base_waypoints.unregister()
 #        self.base_waypoints= None
 #        dl = lambda a, b : math.sqrt((a.x - b[0])**2 + (a.y - b[1])**2)
 
-   # List of positions that correspond to the line to stop in front of for a given intersection
-   
-        #initialize lights to waypoint map
-#        for x in range(len(self.config['stop_line_positions'])):
-#            dist = float('inf')
-#            light_wpt = 0
-#            for y in range(len(self.waypoints)):
-#                d1 = dl(self.waypoints[y].pose.pose.position,
-#                        self.config['stop_line_positions'][x])
-#                if dist > d1:
-#                    light_wp = x
-#                    dist = d1
-#            self.traffic_light_to_wpt_map.append(light_wp)
 
 #self.waypoints = [x.pose.pose.position for x in msg.waypoints]
+        waypoints = np.array([])
+        for point in msg.waypoints:
+            x_coord = point.pose.pose.position.x
+            y_coord = point.pose.pose.position.y
+            waypoints = np.append(waypoints, complex(x_coord, y_coord))
+    
+        self.waypoints = waypoints
+        
+#        rospy.logwarn("tl_detector: updated {} base waypoints".format(len(self.base_waypoints_np)))
         for stop_loc in self.stop_line_positions:
             stop_index =self.get_closest_waypoint_index(stop_loc)
             self.stop_light_loc[stop_loc]=stop_index
@@ -315,11 +311,11 @@ class TLDetector(object):
 
 #            rospy.logwarn("Traffic light in range StopLine_WP: {}, Car_WP: {}".format(light_idx, self.car_index))
             self.in_range =True
-            return light_idx
+            return int(light_idx)
         return None
 
 
-    def get_light_state(self, ligth_wpt):
+    def get_light_state(self, light_wpt):
         """Determines the current color of the traffic light
 
         Args:
@@ -329,7 +325,7 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        if(not self.has_image):
+        if not self.has_image:
             return TrafficLight.UNKNOWN
 
         if light_wpt is not None:
@@ -353,9 +349,23 @@ class TLDetector(object):
 
                     light_class = self.light_classifier.get_classification(pred_img)
                     classification[light_class]+=1
-        
-            light_state = max(classification, key = classification.get)
-            return light_wpt, light_state
+                else:
+                    rospy.loginfo("too small to be detected,then ignore....")
+                        #light_state = max(classification, key = classification.get)
+                        #return light_wpt, light_state
+
+                # come to consensus about the state of traffic lights in the picture
+                result = TrafficLight.UNKNOWN
+                if classification[TrafficLight.RED] > 0:
+                    result = TrafficLight.RED
+                elif classification[TrafficLight.YELLOW] > 0:
+                    result = TrafficLight.YELLOW
+                elif classification[TrafficLight.GREEN] > 0:
+                    result = TrafficLight.GREEN
+                        
+            rospy.logwarn("detected img,result={}".format(result))
+            return light_wpt,result
+                
         return None,TrafficLight.UNKNOWN
 
 

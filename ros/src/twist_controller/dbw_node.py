@@ -42,7 +42,7 @@ class DBWNode(object):
         self.fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
         self.brake_deadband = rospy.get_param('~brake_deadband', .1)
         self.decel_limit = rospy.get_param('~decel_limit', -5)
-        self.accel_limit = rospy.get_param('~accel_limit', 1.5)
+        self.accel_limit = rospy.get_param('~accel_limit', 1)
         self.wheel_radius = rospy.get_param('~wheel_radius', 0.2413)
         self.wheel_base = rospy.get_param('~wheel_base', 2.8498)
         self.steer_ratio = rospy.get_param('~steer_ratio', 14.8)
@@ -50,8 +50,8 @@ class DBWNode(object):
         self.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
         self.min_speed = rospy.get_param('~min_speed', 0.44704)
         self.max_acc = rospy.get_param('~max_acc', .6)
-        self.max_throttle_percentage = rospy.get_param('~max_throttle_percentage',0.1)
-        self.max_braking_percentage = rospy.get_param('~max_breaking_percentage',-0.1)
+        self.max_throttle_percentage = rospy.get_param('~max_throttle_percentage',1.)
+        self.max_braking_percentage = rospy.get_param('~max_breaking_percentage',-1)
         self.dbw_enabled = False
         
         self.pose = None
@@ -106,8 +106,8 @@ class DBWNode(object):
             
             yaw_steer = self.yaw_controller.get_steering(self.linear_velocity, self.angular_velocity, self.current_linear_velocity)
             
-            throttle, brake, steer = self.controller.control(#self.linear_velocity,
-                                                 target_velocity,
+            throttle, brake, steer = self.controller.control(self.linear_velocity,
+                                                             #target_velocity,
                                                                 self.angular_velocity,
                                                             self.current_linear_velocity,
                                                             self.dbw_enabled, self.cte)
