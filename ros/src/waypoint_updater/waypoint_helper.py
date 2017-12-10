@@ -9,7 +9,7 @@ from copy import deepcopy
 import rospy
 import numpy as np
 import tf
-
+import math
 from styx_msgs.msg import Lane
 dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
 
@@ -74,10 +74,10 @@ def get_closest_waypoint_index(pose, waypoints):
         dist =dl(pose.position, waypoint.pose.pose.position)
     #get_square_gap(pose.position, waypoint.pose.pose.position)
 
-        if dist < _closest_dist:
+        if dist < closest_dist:
             closest_index, closest_dist = i, dist
 
-    is_behind = is_waypoint_behind(pose, waypoints[best_index])
+    is_behind = is_waypoint_behind(pose, waypoints[closest_dist])
     while is_behind:
         closest_index += 1
         closest_index %= len(waypoints)
