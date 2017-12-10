@@ -77,8 +77,8 @@ def get_closest_waypoint_index(pose, waypoints):
         if dist < closest_dist:
             closest_index, closest_dist = i, dist
 
-    is_behind = is_waypoint_behind(pose, waypoints[closest_dist])
-    while is_behind:
+    is_behind = is_waypoint_behind(pose, waypoints[closest_index])
+    if is_behind:
         closest_index += 1
         closest_index %= len(waypoints)
     return closest_index
