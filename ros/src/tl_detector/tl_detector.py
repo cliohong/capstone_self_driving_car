@@ -21,7 +21,7 @@ from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, TrafficLight, TrafficLightArray
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-
+import math
 import numpy as np
 import cv2
 
@@ -142,7 +142,7 @@ class TLDetector(object):
 
         start_time = timer()
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
 
         # detect bounding boxes of what looks like traffic lights
         bboxes, tf_ms = self.detector.detect(cv_image)

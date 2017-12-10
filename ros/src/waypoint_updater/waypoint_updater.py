@@ -100,17 +100,45 @@ class WaypointUpdater(object):
 
             # Set target speeds
             # if is_new and is_near_ahead:
-            if self.traffic_index != -1 and is_new:
-                speeds = 10.
-                dist=self.distance(self.base_waypoints, 0, self.traffic_index-closest_car_index)
-                if self.current_velocity >1.:
-                    speeds = min(10, 0.15*(dist-5))
+            #wait for initializing......
+            speeds = 10
+            closest_gap = self.traffic_index - closest_car_index
+
+            if self.traffic_index == 0  or self.traffic_index is None:
+                speeds = 0
+                rospy.logwarn("please wait for initializing.....")
+            elif self.traffic_index != -1 and closest_gap > 0 :
+                if closest_gap> 5 and closest_gap <= 20:
+                    speeds=0
+                elif closest_gap <=5:
+                    self.current_velocity = self.current_velocity+0.5 if self.current_velocity < 10
+
+                elif closest_gap > 20 and closest_gap <= 120:
+                    speeds  = self.current_velocity*(1-(16/closest_gap))
                 else:
-                    speeds = 0.
-                
+                    speeds = min(10,.15 * (closest_gap - 10))
+             
+            else:
+                #now there is no tl ahead, we could speed up!
+                rospy.logwarn("we could speed up now!....")
+                if self.current_velocity < 15:
+                    speeds = = np.linspace(self.current_velocity, 15, 12)
+                else :
+                    speeds = 15
+
+            rospy.logwarn("wp_updater: published speed: {}".format(speeds))
+
+#            if self.traffic_index != -1 and is_new:
+#                speeds = 10.
+#                dist=self.distance(self.base_waypoints, 0, self.traffic_index-closest_car_index)
+#                if self.current_velocity >1.:
+#                    speeds = min(10, 0.15*(dist-5))
+#                else:
+#                    speeds = 0.
+
                 # Slow down and stop
-                for i, waypoint in enumerate(lookahead_waypoints):
-                    self.set_waypoint_velocity(waypoint, i, speeds)
+            for i, waypoint in enumerate(lookahead_waypoints):
+                self.set_waypoint_velocity(self.base_waypoints, i+closest_car_index, speeds)
 #                    _, waypoint.twist.twist.linear.x = self.get_distance_speed_tuple(car_index + i)
 
             # Publish
