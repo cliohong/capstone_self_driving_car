@@ -18,7 +18,7 @@ from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
 from styx_msgs.msg import Lane
 import waypoint_helper
-
+import numpy as np
 LOOKAHEAD_WPS = 200 #: Number of waypoints we will publish
 STALE_TIME = 2
 
@@ -75,8 +75,7 @@ class WaypointUpdater(object):
             if self.base_waypoints is None or self.pose is None or self.frame_id is None:
                 continue
             
-            rospy.logwarn("tarffic light index:={}".format(self.traffic_index))
-            rospy.logwarn("slow-down coeffs:={}".format(self.slowdown_coefficient))
+            #rospy.logwarn("tarffic light index:={}".format(self.traffic_index))
             # Where in base waypoints list the car is
             #car_index = waypoint_helper.get_closest_waypoint_index(self.pose, self.base_waypoints)
 
@@ -89,6 +88,8 @@ class WaypointUpdater(object):
             # Traffic light must be new and near ahead
             time = rospy.get_time() - self.traffic_time_received
             rospy.logwarn("time we received tl location:={}".format(time))
+            rospy.logwarn("---------------------------")
+
             is_new = time < STALE_TIME
             is_near_ahead = False
 
@@ -103,30 +104,39 @@ class WaypointUpdater(object):
             #wait for initializing......
             speeds = 10
             closest_gap = self.traffic_index - closest_car_index
+            stopped_distance = self.distance(lookahead_waypoints, closest_car_index,self.traffic_index)
+            rospy.logwarn("the distance with no tl around:={}".format(stopped_distance))
+            rospy.logwarn("---------------------------")
 
-            if self.traffic_index == 0  or self.traffic_index is None:
+            if self.traffic_index == 0  or self.traffic_index is None or time < 3.:
                 speeds = 0
                 rospy.logwarn("please wait for initializing.....")
             elif self.traffic_index != -1 and closest_gap > 0 :
-                if closest_gap> 5 and closest_gap <= 20:
-                    speeds=0
-                elif closest_gap <=5:
-                    self.current_velocity = self.current_velocity+0.5 if self.current_velocity < 10
+                 rospy.logwarn("the distance with no tl around:={}".format(stopped_distance))
+                speeds = 7
+#                if closest_gap> 5 and closest_gap <= 20:
+#                    speeds=0
+#                elif closest_gap <=5:
+#                    self.current_velocity = self.current_velocity+0.5 if self.current_velocity < 10
 
-                elif closest_gap > 20 and closest_gap <= 120:
-                    speeds  = self.current_velocity*(1-(16/closest_gap))
-                else:
-                    speeds = min(10,.15 * (closest_gap - 10))
-             
-            else:
-                #now there is no tl ahead, we could speed up!
-                rospy.logwarn("we could speed up now!....")
-                if self.current_velocity < 15:
-                    speeds = = np.linspace(self.current_velocity, 15, 12)
-                else :
-                    speeds = 15
+#                elif closest_gap > 20 and closest_gap <= 120:
+#                    speeds  = self.current_velocity*(1-(16/closest_gap))
+#                else:
+#                    speeds = min(10,.15 * (closest_gap - 10))
+#
+#            else:
+#                #now there is no tl ahead, we could speed up!
+#                rospy.logwarn("we could speed up now!....")
+#                if self.current_velocity < 15:
+#                    speeds =  np.linspace(self.current_velocity, 15, 12)
+#                else :
+#                    speeds = 15
 
-            rospy.logwarn("wp_updater: published speed: {}".format(speeds))
+            rospy.logwarn("wp_updater: published speed:={}".format(speeds))
+            rospy.logwarn("---------------------------")
+
+            rospy.logwarn("wp_updater: published speed:={}".format(self.current_velocity))
+
 
 #            if self.traffic_index != -1 and is_new:
 #                speeds = 10.

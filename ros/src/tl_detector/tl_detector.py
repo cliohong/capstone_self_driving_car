@@ -118,7 +118,7 @@ class TLDetector(object):
         # This thread keeps taking messages from ROS until shutdown.
         rospy.spin()
         # Wait for 5 seconds for detector thread once this thread is stopped.
-        self.thread.join(timeout=5)
+        self.thread.join(timeout=8)
 
 
     def pose_cb(self, msg):
@@ -142,7 +142,7 @@ class TLDetector(object):
 
         start_time = timer()
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
         # detect bounding boxes of what looks like traffic lights
         bboxes, tf_ms = self.detector.detect(cv_image)
@@ -264,9 +264,9 @@ class TLDetector(object):
         self.last_car_wp_idx = car_wp_idx
 
         # Find the closest upcoming stop line waypoint index in front of the car
-        INDEX_DISTANCE_THRESHOLD = 150
+        INDEX_DISTANCE_THRESHOLD = 120
 
-        light_dist = [10 < (self.car_direction *(line_index - car_wp_idx)) < INDEX_DISTANCE_THRESHOLD
+        light_dist = [5 < (self.car_direction *(line_index - car_wp_idx)) <= INDEX_DISTANCE_THRESHOLD
                         for line_index in self.stop_lines_wp_idxs]
         
         self.last_in_range = self.in_range
