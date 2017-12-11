@@ -5,6 +5,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 from scipy.ndimage.measurements import label
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 
 class TLDetectorSegmentation(object):

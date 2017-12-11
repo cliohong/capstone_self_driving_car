@@ -113,7 +113,7 @@ class WaypointUpdater(object):
                 rospy.logwarn("please wait for initializing.....")
             elif self.traffic_index != -1 and closest_gap > 0 :
                  rospy.logwarn("the distance with no tl around:={}".format(stopped_distance))
-                speeds = 7
+                 speeds = 7
 #                if closest_gap> 5 and closest_gap <= 20:
 #                    speeds=0
 #                elif closest_gap <=5:
