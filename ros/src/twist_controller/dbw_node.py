@@ -11,6 +11,8 @@ import dbw_helper
 from twist_controller import Controller
 from yaw_controller import YawController
 
+PRED_STEERING_FACTOR = 0.2
+CORR_STEERING_FACTOR = 0.3
 '''
 You can build this node only after you have built (or partially built) the `waypoint_updater` node.
 
@@ -112,7 +114,7 @@ class DBWNode(object):
                                                             self.current_linear_velocity,
                                                             self.dbw_enabled, self.cte)
             if self.dbw_enabled:
-               self.publish(throttle, brake, steer+ 1. * yaw_steer)
+               self.publish(throttle, brake, PRED_STEERING_FACTOR * steer+ CORR_STEERING_FACTOR * yaw_steer)
         
             rate.sleep()
 
@@ -138,6 +140,9 @@ class DBWNode(object):
     
     def dbw_enabled_cb(self, msg):
         self.dbw_enabled = msg
+        if (self.dbw_enabled != msg.data):
+            rospy.logwarn("%s has been %s",rospy.get_name(),"activated" if
+                                        msg.data else "deactivated")
 
     def publish(self, throttle, brake, steer):
         tcmd = ThrottleCmd()

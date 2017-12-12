@@ -11,14 +11,14 @@ from math import sqrt, cos, sin
 import numpy as np
 import tf
 
-POINTS_TO_FIT = 10
+POINTS_TO_FIT = 20
 
 
-def fit_polynomial(waypoints, degree):
-    """fits a polynomial for given waypoints"""
-    x_coords = [waypoint.pose.pose.position.x for waypoint in waypoints]
-    y_coords = [waypoint.pose.pose.position.y for waypoint in waypoints]
-    return np.polyfit(x_coords, y_coords, degree)
+#def fit_polynomial(waypoints, degree):
+#    """fits a polynomial for given waypoints"""
+#    x_coords = [waypoint.pose.pose.position.x for waypoint in waypoints]
+#    y_coords = [waypoint.pose.pose.position.y for waypoint in waypoints]
+#    return np.polyfit(x_coords, y_coords, degree)
 
 
 def get_euler(pose):
@@ -33,40 +33,6 @@ def eucleidian_distance(x0, y0, x1, y1):
     """The Eucleidian distance between points (x0,y0) and (x1,y1)"""
     return sqrt(pow(x0 - x1, 2) + pow(y0 - y1, 2))
 
-
-def distance2parabola(coefficients, x, y):
-    """
-    Calculates the distance of a point from a parabola defined
-    by its polynomial coefficients.
-
-    Args:
-         coefficients (list) : Polynomial coefficients from higher to lower order
-         x (float) : X-Coordinate of the point we want distance for
-         y (float) : Y-Coordinate of the point we want distance for
-         plot (bool) : If True, create a plot of the parabola, the point and the distance
-
-    Returns:
-        distance (float) : The distance of the point to the parabola
-        left (int) : 1 if the point is on the left of the curve as we "walk" the curve
-                     from negative to positive x's. -1 if on the right
-    """
-    a, b, c = coefficients
-    p0 = 2 * a * a
-    p1 = 3 * a * b
-    p2 = 2 * a * c - 2 * a * y + b * b + 1
-    p3 = b * c - b * y - x
-
-    p = [p0, p1, p2, p3]
-
-    roots = np.roots(p)
-    # filter the real only root
-    x_ = np.real(roots[np.isreal(roots)])[0]
-    y_ = np.polyval(coefficients, x_)
-
-    distance = eucleidian_distance(x, y, x_, y_)
-    left = -1 if y_ < y else 1
-
-    return distance, left, x_, y_
 
 
 def shift_and_rotate_waypoints(pose, waypoints, points_to_use=None):
@@ -150,7 +116,7 @@ def cte(pose, waypoints):
     """
     x_coords, y_coords = shift_and_rotate_waypoints(
         pose, waypoints, POINTS_TO_FIT)
-    coefficients = np.polyfit(x_coords, y_coords, 3)
-    distance = np.polyval(coefficients, 5.0)
+    polyfit = np.poly1d(np.polyfit(x_coords, y_coords, ２))
+    cte=polyfit(2)
 
-    return distance
+    return cte
