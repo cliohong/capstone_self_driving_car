@@ -11,8 +11,6 @@ import dbw_helper
 from twist_controller import Controller
 from yaw_controller import YawController
 
-PRED_STEERING_FACTOR = 0.2
-CORR_STEERING_FACTOR = 0.3
 '''
 You can build this node only after you have built (or partially built) the `waypoint_updater` node.
 
@@ -44,14 +42,14 @@ class DBWNode(object):
         self.fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
         self.brake_deadband = rospy.get_param('~brake_deadband', .1)
         self.decel_limit = rospy.get_param('~decel_limit', -5)
-        self.accel_limit = rospy.get_param('~accel_limit', 1)
+        self.accel_limit = rospy.get_param('~accel_limit', 1.)
         self.wheel_radius = rospy.get_param('~wheel_radius', 0.2413)
         self.wheel_base = rospy.get_param('~wheel_base', 2.8498)
         self.steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         self.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         self.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
         self.min_speed = rospy.get_param('~min_speed', 0.44704)
-        self.max_acc = rospy.get_param('~max_acc', .75)
+        self.max_acc = rospy.get_param('~max_acc', .8)
         self.max_throttle_percentage = rospy.get_param('~max_throttle_percentage',1.)
         self.max_braking_percentage = rospy.get_param('~max_breaking_percentage',-1.)
         self.dbw_enabled = False
@@ -101,20 +99,15 @@ class DBWNode(object):
             
             if not all_available:
                 continue
-            
-            target_velocity = 30. #self.waypoints[0].twist.twist.linear.x
-
+        
             self.cte = dbw_helper.cte(self.pose, self.waypoints)
             
             yaw_steer = self.yaw_controller.get_steering(self.linear_velocity, self.angular_velocity, self.current_linear_velocity)
             
-            throttle, brake, steer = self.controller.control(self.linear_velocity,
-                                                             #target_velocity,
-                                                                self.angular_velocity,
-                                                            self.current_linear_velocity,
-                                                            self.dbw_enabled, self.cte)
+            throttle, brake, steer = self.controller.control(self.linear_velocity,                                                                self.angular_velocity, self.current_linear_velocity,self.dbw_enabled, self.cte)
+            
             if self.dbw_enabled:
-               self.publish(throttle, brake, PRED_STEERING_FACTOR * steer+ CORR_STEERING_FACTOR * yaw_steer)
+               self.publish(throttle, brake, 0.2*steer+ yaw_steer)
         
             rate.sleep()
 
@@ -140,9 +133,8 @@ class DBWNode(object):
     
     def dbw_enabled_cb(self, msg):
         self.dbw_enabled = msg
-        if (self.dbw_enabled != msg.data):
-            rospy.logwarn("%s has been %s",rospy.get_name(),"activated" if
-                                        msg.data else "deactivated")
+        if self.dbw_enabled != msg :
+            rospy.logwarn("%s has been %s",rospy.get_name(),"activated" if msg else "deactivated")
 
     def publish(self, throttle, brake, steer):
         tcmd = ThrottleCmd()

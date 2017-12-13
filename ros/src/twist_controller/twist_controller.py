@@ -1,7 +1,7 @@
 from lowpass import LowPassFilter
 from pid import PID
 import numpy as np
-
+import rospy
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
@@ -22,25 +22,18 @@ class Controller(object):
         self.max_acc = args[9]
         self.vehicle_mass = args[0] + self.fuel_capacity*GAS_DENSITY
         self.init_time = 0.02
-        self.prev_time = rospy.get_time()
         self.lowpss = LowPassFilter(self.accel_limit,self.init_time)
-        self.pid =PID(1.8, 0.006, 0.715, mn = self.decel_limit,mx=self.accel_limit,self.lowpss) #0.05
-        #PID(2., 0.5, 0.15, mn=self.max_braking_percentage, mx=self.max_throttle_percentage)
+        self.pid = PID(1.5, 0.0053, 0.156, mn=self.max_braking_percentage, mx=self.max_throttle_percentage)
+        self.prev_time = rospy.get_time()
         #max torque corresponding to max throttle value of 1.0
-        #self.max_acc_torque = self.vehicle_mass* self.max_acc *self.wheel_radius
-        self.max_acc_torque = self.vehicle_mass *self.wheel_radius
-
+        self.max_acc_torque = self.vehicle_mass* self.max_acc *self.wheel_radius
         #max brake torque corresponding to deceleration limit
-        #self.max_brake_torque = self.vehicle_mass * abs(self.decel_limit)*self.wheel_radius
-        self.max_brake_torque = self.vehicle_mass * self.wheel_radius
+        self.max_brake_torque = self.vehicle_mass * abs(self.decel_limit)*self.wheel_radius
 
     def control(self, *args, **kwargs):
         # TODO: Change the arg, kwarg list to suit your needs
         # Return throttle, brake, steer
-        #limit_time = 0.2
-        throttle = 0.0
-        brake = 0.0
-    
+        limit_time = 0.02
         self.dbw_enabled = args[3]
         if self.dbw_enabled:
             current_time = rospy.get_time()
@@ -51,45 +44,32 @@ class Controller(object):
             self.curr_linear_velocity = args[2]
             self.cte = args[4]
             steer =self.pid.step(self.cte, sample_time)
-          
+            throttle = 0.0
+            brake = 0.0
             #calculate vel difference that needs to modify
             error = self.target_linear_velocity - self.curr_linear_velocity
             #apply limits to acceleration
+            acceleration = error / limit_time
             
-            acceleration = error / sample_time
-            rospy.logwarn("vel error is :={}".format(error))
-            rospy.logwarn("acc is :={}".format(acceleration))
+            if acceleration > 0 :
+                acceleration = min(self.accel_limit, acceleration)
+            else:
+                acceleration = max(self.decel_limit,acceleration)
+        
+            #under deadband condition, there is no controls
+            if abs(acceleration)<self.brake_deadband:
+                return throttle, brake, steer
 
+            #calculate torque = M * acc *R
             torque = self.vehicle_mass * acceleration * self.wheel_radius
 
-            if acceleration < 0.0  or self.target_linear_velocity < self.curr_linear_velocity:
-                if -acceleration < self.brake_deadband:
-                    acceleration = 0.
-                throttle,brake = 0.0, min(abs(torque),self.max_brake_torque)
+            if torque >0 :
+                throttle, brake = min(1.,torque/self.max_acc_torque), 0.0
             else:
-                if (acceleration > self.max_throttle_percentage):
-                    acceleration = self.max_throttle_percentage
-                throttle,brake = min(1.,torque/self.max_acc_torque), 0.0
-    
-#            if acceleration > 0 :
-#                acceleration = min(self.accel_limit, acceleration)
-#            else:
-#                acceleration = max(self.decel_limit,acceleration)
-#
-#        #under deadband condition, there is no controls
-#            if abs(acceleration)<self.brake_deadband:
-#                return throttle, brake, steer
-#
-#            #calculate torque = M * acc *R
-#            torque = self.vehicle_mass * acceleration * self.wheel_radius
-#
-#            if torque >0 :
-#                throttle, brake = min(1.,torque/self.max_acc_torque), 0.0
-#            else:
-#                throttle, brake = 0.0, min(abs(torque),self.max_brake_torque)
-#
-#            return throttle,brake, steer
-#
+                throttle, brake = 0.0, min(abs(torque),self.max_brake_torque)
+
+            return throttle,brake, steer
+        
         else:
             self.pid.reset()
 
