@@ -204,7 +204,7 @@ class TLDetector(object):
         Returns:
         int: index of the closest waypoint in self.waypoints
         """
-        if len(self.base_waypoints_np) == 0:
+        if len(self.base_waypoints) == 0:
             rospy.logwarn("tl_detector: Waypoints numpy array is not initialized")
             return -1
                     
@@ -216,7 +216,7 @@ class TLDetector(object):
             get_distance = np.vectorize(lambda waypoint: np.linalg.norm(complex(pose.position.x,
                                                                                 pose.position.y) - waypoint))
 
-        closest_point = get_distance(self.base_waypoints_np)
+        closest_point = get_distance(self.base_waypoints)
         return np.argmin(closest_point)
             
             
