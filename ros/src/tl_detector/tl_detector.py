@@ -158,38 +158,66 @@ class TLDetector(object):
         self.lock.acquire()
         self.event.set()
         self.lock.release()
-    
-    def get_closest_waypoint_index(self, position):
-        """Identifies the closest path waypoint to the given position
-            https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
+#
+#    def get_closest_waypoint_index(self, position):
+#        """Identifies the closest path waypoint to the given position
+#            https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
+#        Args:
+#            position: position to match a waypoint to ros type or complex(x,y)
+#
+#        Returns:
+#            int: index of the closest waypoint in self.waypoints
+#
+#        """
+#        #TODO implement
+##        def get_squared_distance(a, b):
+##        #returns squared distance between two points
+##            return (a.x - b.x)**2 + (a.y - b.y)**2
+#
+#        if len(self.base_waypoints) == 0:
+#            rospy.logwarn("waypoints array is not initialized")
+#            return -1
+#        if type(position) is list:
+#            dist = np.vectorize(lambda waypoint: np.linalg.norm(complex(position[0],position[1]) - waypoint))
+#        else:
+#            dist = np.vectorize(lambda waypoint:np.linalg.norm(complex(position.position.x, position.position.y) - waypoint))
+##
+##        for i ,waypoint in enumerate(self.waypoints):
+##            dist =get_squared_distance(light_position,waypoint)
+##            if dist < closest_dist:
+##                closest_dist, closest_index=dist, i
+#        closest_index = dist(self.base_waypoints)
+#
+#        return np.argmin(closest_index)
+
+##
+
+    def get_closest_waypoint_index(self, pose):
+        """Identify the index of closest waypoint in self.base_waypoints_np for the given pose
+        https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
+        NB: 'closest' may be behind
         Args:
-            position: position to match a waypoint to ros type or complex(x,y)
-
+        pose (Pose): position to match a waypoint to. Either ROS pose type or complex(x,y)
+        
         Returns:
-            int: index of the closest waypoint in self.waypoints
-
+        int: index of the closest waypoint in self.waypoints
         """
-        #TODO implement
-#        def get_squared_distance(a, b):
-#        #returns squared distance between two points
-#            return (a.x - b.x)**2 + (a.y - b.y)**2
-
-        if len(self.base_waypoints) == 0:
-            rospy.logwarn("waypoints array is not initialized")
+        if len(self.base_waypoints_np) == 0:
+            rospy.logwarn("tl_detector: Waypoints numpy array is not initialized")
             return -1
-        if type(position) is list:
-            dist = np.vectorize(lambda waypoint: np.linalg.norm(complex(position[0],position[1]) - waypoint))
+                    
+        if type(pose) is list:
+            # pose comes from stop_line_positions
+            get_distance = np.vectorize(lambda waypoint: np.linalg.norm(complex(pose[0], pose[1]) - waypoint))
         else:
-            dist = np.vectorize(lambda waypoint:np.linalg.norm(complex(position.position.x, position.position.y) - waypoint))
-#
-#        for i ,waypoint in enumerate(self.waypoints):
-#            dist =get_squared_distance(light_position,waypoint)
-#            if dist < closest_dist:
-#                closest_dist, closest_index=dist, i
-        closest_index = dist(self.base_waypoints)
+            # pose comes from ROS pose type
+            get_distance = np.vectorize(lambda waypoint: np.linalg.norm(complex(pose.position.x,
+                                                                                pose.position.y) - waypoint))
 
-        return np.argmin(closest_index)
-#
+        closest_point = get_distance(self.base_waypoints_np)
+        return np.argmin(closest_point)
+            
+            
     def get_next_light(self,stop_line_locations):
         """
             find index and location of next traffic light which should be in front
@@ -236,6 +264,7 @@ class TLDetector(object):
               for line_index in self.stop_line_pos_indxs]
         if any(closest_light_index):
             next_light_index  = self.stop_line_pos_indxs[np.argmax(closest_light_index)]
+            rospy.logwarn("closest tl index:={}".format(next_light_index))
             self.in_range = True
         else:
             self.in_range = False
