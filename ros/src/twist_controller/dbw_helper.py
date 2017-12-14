@@ -4,7 +4,7 @@ import numpy as np
 import tf
 from math import sqrt, cos, sin
 
-POINTS_TO_FIT = 15
+POINTS_TO_FIT = 10
 
 #
 #def fit_polynomial(waypoints, degree):
@@ -37,9 +37,6 @@ def shift_and_rotate_waypoints(pose, waypoints, points_no=None):
                                                      pose.orientation.z,
                                                      pose.orientation.w])
 
-    if points_no is None:
-        points_no = len(waypoints)
-
     for i in range(points_no):
 
         shift_x = waypoints[i].pose.pose.position.x - pose.position.x
@@ -66,7 +63,7 @@ def cte(pose, waypoints):
     """
     x_coords, y_coords = shift_and_rotate_waypoints(
         pose, waypoints, POINTS_TO_FIT)
-    coefficients = np.polyfit(x_coords, y_coords, 3)
-    cte = np.polyval(coefficients, 5.0)
+    coefficients = np.polyfit(x_coords, y_coords, 2)
+    cte = np.polyval(coefficients, 4.0)
 
     return cte

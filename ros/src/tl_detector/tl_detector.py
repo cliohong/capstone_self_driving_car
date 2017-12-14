@@ -14,11 +14,12 @@ import yaml
 import math
 import numpy as np
 from collections import namedtuple
+from threading import Lock, Thread, Event
 
-"""
-The model is based on semantic segmentation (FCN). The model will predict the potential traffic lights in image and classfiy what kind of light it is.
-If next traffic light is out of range/in range but not Red then -1 will be published
-"""
+'''
+    The model is based on semantic segmentation (FCN). The model will predict the potential traffic lights in image and classfiy what kind of light it is.
+   If next traffic light is out of range/in range but not Red then -1 will be published
+'''
 
 STATE_COUNT_THRESHOLD = 1
 LOOKAHEAD_WPS = 200
@@ -31,7 +32,6 @@ class TLDetector(object):
         self.base_waypoints = np.array([])
         self.theta = None
         #self.lights = []
-        self.car_index = None
         self.bridge = CvBridge()
         self.has_image = False
         self.camera_image = None
@@ -48,13 +48,16 @@ class TLDetector(object):
             #[Point(x,y) for x,y in self.config['stop_line_positions']]
         #self.closest_stop_line_index = None
         #last detected index of red oncoming traffic light
-        self.next_traffic_light_wpt_index= None
+        self.next_traffic_light_wpt_index= -1
+        #last nearest waypoint index of the car
+        self.car_index = None
+
         #self.time_received = rospy.get_time()
         #self.stop_light_loc={}
         
         
         #lock to access to image data between 2 threads at same time
-        self.lock() = Lock()
+        self.lock = Lock()
         #Detector thread waits for the event
         self.event = Event()
         self.event.clear()
@@ -80,7 +83,7 @@ class TLDetector(object):
         #rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         rospy.Subscriber('/image_color', Image, self.image_cb, queue_size=1)
 
-        rospy.Subscriber('/car_index', Int32,self.car_index_cb, queue_size=1)
+#rospy.Subscriber('/car_index', Int32,self.car_index_cb, queue_size=1)
 
 #self.camera_info = self.config['camera_info']
                       
@@ -88,7 +91,7 @@ class TLDetector(object):
 
         rospy.spin()
         #wait for 5 secs for next detector thread
-        rospy.thread.joint(timeout = 5)
+        self.thread.join(timeout = 5)
                       
                       
 #    def loop(self):
@@ -129,8 +132,8 @@ class TLDetector(object):
         if self.base_waypoints is None:
             waypoints=np.array([])
             for waypoint in msg.waypoints:
-                waypoints.append(waypoints, complex(waypoint.pose.pose.position.x,waypoint.pose.pose.position.y)
-            self.base_waypoints = waypoints
+                waypoints= np.append(waypoints, complex(waypoint.pose.pose.position.x,waypoint.pose.pose.position.y))
+            waypoints = self.base_waypoints
 #
 
 #        for stop_loc in self.stop_line_positions:
@@ -140,17 +143,17 @@ class TLDetector(object):
 
 #    def traffic_cb(self, msg):
 #        self.lights = msg.lights
+#
+#    def car_index_cb(self,msg):
+#        self.car_index = msg.data
 
-    def car_index_cb(self,msg):
-        self.car_index = msg.data
-                      
     def image_cb(self, msg):
         """
         Args:
             msg (Image): image from car-mounted camera
         """
         
-                                 self.has_image = True
+        self.has_image = True
         self.camera_image = msg
         self.lock.acquire()
         self.event.set()
@@ -160,7 +163,7 @@ class TLDetector(object):
         """Identifies the closest path waypoint to the given position
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
-            pose: position to match a waypoint to ros type or complex(x,y)
+            position: position to match a waypoint to ros type or complex(x,y)
 
         Returns:
             int: index of the closest waypoint in self.waypoints
@@ -177,7 +180,7 @@ class TLDetector(object):
         if type(position) is list:
             dist = np.vectorize(lambda waypoint: np.linalg.norm(complex(position[0],position[1]) - waypoint))
         else:
-                dist = np.vectorize(lambda waypoint:np.linalg.norm(complex(position.position.x, position.position.y) - waypoint))
+            dist = np.vectorize(lambda waypoint:np.linalg.norm(complex(position.position.x, position.position.y) - waypoint))
 #
 #        for i ,waypoint in enumerate(self.waypoints):
 #            dist =get_squared_distance(light_position,waypoint)
@@ -195,7 +198,7 @@ class TLDetector(object):
             Returns:
                 int: index of waypoint closes to the upcoming stop line for a traffic light (-1 if none exists)
         """
-        if len(self.waypoints) == 0:
+        if len(self.base_waypoints) == 0:
             rospy.logdebug("waypoints array is not set")
             return -1
         if self.pose == None:
@@ -205,20 +208,20 @@ class TLDetector(object):
         next_light_index = -1
         if len(self.stop_line_pos_indxs)==0:
             for stop_line_loc in stop_line_locations:
-                stop_line_pos_indxs =self.get_closest_waypoint_index(stop_light_loc))
+                stop_line_pos_indxs =self.get_closest_waypoint_index(stop_light_loc)
             self.stop_line_pos_indxs.append(stop_line_pos_indxs)
         
         #get car_index
-        car_index = self.get_closest_waypoint_index(self.pose.pose)
-        if self.next_traffic_light_wpt_index is not None:
-            if(self.next_traffic_light_wpt_index - car_index) <= 0:
+        curr_car_index = self.get_closest_waypoint_index(self.pose.pose)
+        if self.car_index is not None:
+            if(self.car_index - curr_car_index) <= 0:
                 car_dir = 1
             else:
                 car_dir= -1
         else:
             car_dir = 1
 
-        self.next_traffic_light_wpt_index = car_index
+        self.car_index = curr_car_index
         closest_light_index = []
         self.in_last_range = self.in_range
         #find the closest upcoming stop line waypoint index in front of the car
@@ -226,7 +229,7 @@ class TLDetector(object):
             if 0 < (car_dir * (line_index - car_index)) <= 100:
                 closest_light_index.append(line_index)
 
-        if any(closest_stop_line_index):
+        if any(closest_light_index):
             next_light_index  = self.stop_line_pos_indxs[np.argmax(closest_light_index)]
             self.in_range = True
         else:
@@ -276,19 +279,19 @@ class TLDetector(object):
             classification[light_class]+=1
 
         light_state = max(classification, key = classification.get)
-            if light_state = TrafficLight.RED:
-                rospy.logwarn("RED light has been detected")
-            elif light_state == TrafficLight.YELLOW:
-                rospy.logwarn("YELLOW light has been detected")
-            elif light_state == TrafficLight.GREEN:
-                rospy.logwarn("GREEN light has been detected")
-            else:
-                rospy.logwarn("the detector is UNKNOWN...")
+        if light_state == TrafficLight.RED:
+            rospy.logwarn("RED light has been detected")
+        elif light_state == TrafficLight.YELLOW:
+            rospy.logwarn("YELLOW light has been detected")
+        elif light_state == TrafficLight.GREEN:
+            rospy.logwarn("GREEN light has been detected")
+        else:
+            rospy.logwarn("the detector is UNKNOWN...")
         return light_state
     
     def detector_thread(self):
-    """ Loop runs in seperate thread. Identifies red lights in the incoming camera image and publishes the index of the waypoint closest to the red light's stop line to /traffic_waypoint
-    """
+        """ Loop runs in seperate thread. Identifies red lights in the incoming camera image and publishes the index of the waypoint closest to the red light's stop line to /traffic_waypoint
+        """
         while not rospy.is_shutdown() and self.event.wait():
             self.lock.acquire()
             self.event.clear()
@@ -296,13 +299,13 @@ class TLDetector(object):
             start = timer()
             traffic_light_index = self.get_next_light(self.config['stop_line_positions'])
     
-                if traffic_light_index > -1:
-                    #run image detection
-                    light_state = self.get_light_state()
-                    self.process_and_public_traffic_lights(light_state,traffic_light_index)
-                        #rospy.logwarn("detected thread state = {}".format(light_state))
-                else:
-                    self.process_and_public_traffic_lights(TrafficLight.UNKNOWN,-1)
+            if traffic_light_index > -1:
+                #run image detection
+                light_state = self.get_light_state()
+                self.process_and_public_traffic_lights(light_state,traffic_light_index)
+                    #rospy.logwarn("detected thread state = {}".format(light_state))
+            else:
+                self.process_and_public_traffic_lights(TrafficLight.UNKNOWN,-1)
 
 
     def process_and_public_traffic_lights(self, state, traffic_light_index):

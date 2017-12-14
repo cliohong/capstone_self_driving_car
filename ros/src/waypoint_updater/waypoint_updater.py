@@ -80,7 +80,7 @@ class WaypointUpdater(object):
             # if is_new and is_near_ahead:
             #wait for initializing......
             closest_gap = self.traffic_index - closest_car_index
-            stopped_distance = self.distance(lookahead_waypoints, closest_car_index,self.traffic_index)
+            stopped_distance = self.distance(self.base_waypoints, closest_car_index,self.traffic_index)
             #rospy.logwarn("the distance with no tl around:={}".format(stopped_distance))
             #rospy.logwarn("---------------------------")
             if stopped_distance < 30 and stopped_distance > 0 :
@@ -106,7 +106,7 @@ class WaypointUpdater(object):
         speed = 0.0
 
         if dist > self.stopped_distance:
-            speed = car_speed * (1 - 12/(d+0.0001))
+            speed = car_speed * (1 - 12/(dist+0.0001))
 
         if speed < 1.76:
             speed = 0.0
