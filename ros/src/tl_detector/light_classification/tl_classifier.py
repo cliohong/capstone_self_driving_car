@@ -31,11 +31,24 @@ class TLClassifier(object):
     def __init__(self):
         #TODO load classifier
         self.detector_graph = DETECTOR_MODEL
-        self.session = None
-        self.class_input = None
-        self.class_prediction = None
-        self.class_keep_prob = None
+        self.session = self.initialize()
         self.img_size =(288,384)
+        # Read the detector metagraph
+        detector_graph_def = tf.GraphDef()
+        with open(self.detector_graph, 'rb') as f:
+            serialized = f.read()
+            detector_graph_def.ParseFromString(serialized)
+        tf.import_graph_def(detector_graph_def, name='detector')
+        graph = self.session.graph
+        #Input/output
+        self.class_input = graph.get_tensor_by_name('detector/data/images:0')
+        self.class_prediction = graph.get_tensor_by_name('detector/predictions/prediction_class:0')
+        self.class_keep_prob = graph.get_tensor_by_name('detector/keep_prob:0')
+        
+        
+        # test TensorFlow to allocate all the data structs in the right way
+        fake_img = np.zeros((288, 384, 3), dtype=np.uint8)
+        self.get_detector(fake_img)
 
     def initialize(self):
         """
@@ -45,25 +58,8 @@ class TLClassifier(object):
         config = tf.ConfigProto(log_device_placement=False)
         config.gpu_options.allow_growth = True
         config.gpu_options.per_process_gpu_memory_fraction = 0.9
-        self.session = tf.Session(config = config)
-        sess=self.session
- 
-        # Read the detector metagraph
-        detector_graph_def = tf.GraphDef()
-        with open(self.detector_graph, 'rb') as f:
-            serialized = f.read()
-            detector_graph_def.ParseFromString(serialized)
-
-
-        tf.import_graph_def(detector_graph_def, name='detector')
-        self.class_input = sess.graph.get_tensor_by_name('detector/data/images:0')
-        self.class_prediction = sess.graph.get_tensor_by_name('detector/predictions/prediction_class:0')
-        self.class_keep_prob = sess.graph.get_tensor_by_name('detector/keep_prob:0')
-        
+        return tf.Session(config = config)
     
-        # test TensorFlow to allocate all the data structs in the right way
-        fake_img = np.zeros((288, 384, 3), dtype=np.uint8)
-        self.get_detector(fake_img)
 
     def get_detector(self, img):
         """Detects the traffic light in the image
@@ -86,7 +82,7 @@ class TLClassifier(object):
         
         #RUN PREDICTION
         start_time = timer()
-        light_class = sess.run([self.class_prediction],
+        light_class = self.session.run([self.class_prediction],
                                feed_dict={self.class_input:[resized_img],
                                self.class_keep_prob:1.})
         light_class = np.array(light_class[0][0,:,:,:],dtype = np.uint8)
@@ -157,3 +153,8 @@ class TLClassifier(object):
         else:
             rospy.logwarn("ErroR - cannot classify !")
             return TrafficLight.UNKNOWN
+
+
+                def load_graph(self):
+                    graph_def = tf.GraphDef()
+                    with open(self.)

@@ -70,7 +70,7 @@ class TLDetector(object):
         
 
         self.light_classifier = TLClassifier()
-        self.light_classifier.initialize()
+        #self.light_classifier.initialize()
         rospy.logwarn('classifier initialized')
                       
         '''
@@ -298,7 +298,7 @@ class TLDetector(object):
             self.lock.release()
             start = timer()
             traffic_light_index = self.get_next_light(self.config['stop_line_positions'])
-    
+            rospy.logwarn("tl index:={}".format(traffic_light_index))
             if traffic_light_index > -1:
                 #run image detection
                 light_state = self.get_light_state()
