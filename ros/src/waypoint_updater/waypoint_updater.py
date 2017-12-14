@@ -15,8 +15,6 @@ import waypoint_helper
 import numpy as np
 LOOKAHEAD_WPS = 200 #: Number of waypoints will be published
 
-
-#-------------------------------------------------------------------------------
 class WaypointUpdater(object):
     """
     Given the position and map this object publishes
@@ -106,9 +104,9 @@ class WaypointUpdater(object):
         speed = 0.0
 
         if dist > self.stopped_distance:
-            speed = car_speed * (1 - 12/(dist+0.0001))
+            speed = car_speed * (1 - 10/(dist+0.0001))
 
-        if speed < 1.75:
+        if speed < 1.8:
             speed = 0.0
         return speed
 
