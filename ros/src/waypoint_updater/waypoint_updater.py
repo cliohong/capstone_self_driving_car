@@ -41,6 +41,7 @@ class WaypointUpdater(object):
         self.frame_id = None
         #self.current_waypoint_ahead = None
         self.current_velocity = 0.
+        self.current_waypoint_ahead = None
         #self.previous_car_index = 0 #: Where in base waypoints list the car is
      #   position fo closetst traffic light
         self.traffic_index = 0 #: Where in base waypoints list the traffic light is
@@ -64,10 +65,11 @@ class WaypointUpdater(object):
             
             #rospy.logwarn("tarffic light index:={}".format(self.traffic_index))
             closest_car_index = waypoint_helper.get_closest_waypoint_index(self.pose, self.base_waypoints)
+            self.current_waypoint_ahead = closest_car_index
+            lookahead_waypoints = self.get_waypoint_indxs(closest_car_index,LOOKAHEAD_WPS)
 
             # Get subset waypoints ahead
-            lookahead_waypoints = waypoint_helper.get_next_waypoints(self.base_waypoints,
-                                                    closest_car_index, LOOKAHEAD_WPS)
+            #lookahead_waypoints = waypoint_helper.get_next_waypoints(self.base_waypoints,closest_car_index, LOOKAHEAD_WPS)
 
             # Traffic light must be new and near ahead
             time = rospy.get_time() - self.traffic_time_received
@@ -106,11 +108,26 @@ class WaypointUpdater(object):
         speed = 0.0
 
         if dist > self.stopped_distance:
-            speed = car_speed * (1 - 12/(dist+0.0001))
+            speed = car_speed * (1 - 12/dist)
 
         if speed < 1.76:
             speed = 0.0
         return speed
+    
+    def get_waypoint_indxs(self,start_index,length):
+        """ Computes a cyclic list of waypoints indices
+            Args:
+            start_index : initial index of the list
+            length: default length of waypoint list
+            Returns:
+            cyclic list of waypoint indices
+        """
+        length = min(self.base_waypoints, length)
+        end_index = start_index + length
+        q, r = divmod(end_index, len(self.base_waypoints))
+        if q == 0 :
+            return range(start_index, r)
+        return range(start_index,len(self.base_waypoints))+range(0,r)
 
     #---------------------------------------------------------------------------
     def pose_cb(self, msg):
