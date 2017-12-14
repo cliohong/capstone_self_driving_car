@@ -116,7 +116,7 @@ class TLClassifier(object):
         #take LUV color conversion and extract L channel
         l_channel = cv2.cvtColor(img, cv2.COLOR_RGB2LUV)
         self.l_channel = l_channel[int(self.img_h*0.1):int(self.img_h*0.9),
-                                       int(0.1*self.img_w):int(self.img_w*0.9),0]
+                                       int(self.img_w*0.1):int(self.img_w*0.9),0]
         #split the image to three parts
         self.top_red = int(self.l_channel.shape[0]/3)
         self.bottom_green = int(self.l_channel.shape[0] - self.top_red)
@@ -133,7 +133,7 @@ class TLClassifier(object):
                 mid += self.l_channel[i][j]
         count_ryg['YELLOW'] = mid
 
-        for i in range(self.bottom_green):
+        for i in range(self.bottom_green,self.l_channel.shape[0]):
             for j in range(self.l_channel.shape[1]):
                 bottom+=self.l_channel[i][j]
         count_ryg['GREEN'] = bottom
