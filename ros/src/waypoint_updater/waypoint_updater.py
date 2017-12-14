@@ -88,14 +88,17 @@ class WaypointUpdater(object):
             if stopped_distance < 30 and stopped_distance > 0 :
                 is_near = True
             if is_near:
-                for i , waypoint in enumerate(lookahead_waypoints):
+                # for i , waypoint in enumerate(lookahead_waypoints):
+                for i in lookahead_waypoints
                      waypoint.twist.twist.linear.x = self.get_slow_down_speed(closest_car_index+i)
             if self.current_velocity > 11:
                 self.current_velocity = 10.5
 #rospy.logwarn("the current speed is:={}".format(self.current_velocity))
 
             # Publish
-            lane = waypoint_helper.publish_lane_object(self.frame_id, lookahead_waypoints)
+            lane = waypoint_helper.publish_lane_object(self.frame_id, self.base_waypoints, lookahead_waypoints)
+            #lane = waypoint_helper.publish_lane_object(self.frame_id,lookahead_waypoints)
+
             self.final_waypoints_pub.publish(lane)
             self.car_index_pub.publish(closest_car_index)
 
