@@ -83,8 +83,7 @@ class TLClassifier(object):
         #RUN PREDICTION
         start_time = timer()
         light_class = self.session.run([self.class_prediction],
-                               feed_dict={self.class_input:[resized_img],
-                               self.class_keep_prob:1.})
+                               {self.class_keep_prob:1., self.class_input:[resized_img]})
         light_class = np.array(light_class[0][0,:,:,:],dtype = np.uint8)
         tf_time =int(timer() - start_time)*1000
         #take pics which contain only traffic light
@@ -117,7 +116,7 @@ class TLClassifier(object):
         #take LUV color conversion and extract L channel
         l_channel = cv2.cvtColor(img, cv2.COLOR_RGB2LUV)
         self.l_channel = l_channel[int(self.img_h*0.1):int(self.img_h*0.9),
-                                       int(self.img_w):int(self.img_w*0.9),0]
+                                       int(0.1*self.img_w):int(self.img_w*0.9),0]
         #split the image to three parts
         self.top_red = int(self.l_channel.shape[0]/3)
         self.bottom_green = int(self.l_channel.shape[0] - self.top_red)
