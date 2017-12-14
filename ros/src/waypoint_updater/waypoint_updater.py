@@ -23,7 +23,6 @@ class WaypointUpdater(object):
     points with target velocities representing path ahead
     """
 
-    #---------------------------------------------------------------------------
     def __init__(self):
         """Initialize Waypoint Updater"""
 
@@ -50,7 +49,6 @@ class WaypointUpdater(object):
 
         self.loop()
 
-    #---------------------------------------------------------------------------
     def loop(self):
         """
         Publishes car index and subset of waypoints with ideal velocities
@@ -66,8 +64,6 @@ class WaypointUpdater(object):
             #rospy.logwarn("tarffic light index:={}".format(self.traffic_index))
             closest_car_index = waypoint_helper.get_closest_waypoint_index(self.pose, self.base_waypoints)
             self.current_waypoint_ahead = closest_car_index
-            #lookahead_waypoints = self.get_waypoint_indxs(closest_car_index,LOOKAHEAD_WPS)
-
             # Get subset waypoints ahead
             lookahead_waypoints = waypoint_helper.get_next_waypoints(self.base_waypoints,closest_car_index, LOOKAHEAD_WPS)
 
@@ -90,8 +86,8 @@ class WaypointUpdater(object):
             if is_near:
                 for i , waypoint in enumerate(lookahead_waypoints):
                      waypoint.twist.twist.linear.x = self.get_slow_down_speed(closest_car_index+i)
-            if self.current_velocity > 11:
-                self.current_velocity = 10.5
+            if self.current_velocity > 10.5:
+                self.current_velocity = 10.
 #rospy.logwarn("the current speed is:={}".format(self.current_velocity))
 
             # Publish
@@ -110,28 +106,12 @@ class WaypointUpdater(object):
         speed = 0.0
 
         if dist > self.stopped_distance:
-            speed = car_speed * (1 - 12/dist)
+            speed = car_speed * (1 - 12/(dist+0.0001))
 
-        if speed < 1.76:
+        if speed < 1.75:
             speed = 0.0
         return speed
-    
-    def get_waypoint_indxs(self,start_index,length):
-        """ Computes a cyclic list of waypoints indices
-            Args:
-            start_index : initial index of the list
-            length: default length of waypoint list
-            Returns:
-            cyclic list of waypoint indices
-        """
-        length = min(self.base_waypoints, length)
-        end_index = start_index + length
-        q, r = divmod(end_index, len(self.base_waypoints))
-        if q == 0 :
-            return range(start_index, r)
-        return range(start_index,len(self.base_waypoints))+range(0,r)
 
-    #---------------------------------------------------------------------------
     def pose_cb(self, msg):
         """ Update vehicle location """
         self.pose = msg.pose # store location (x, y)
@@ -139,7 +119,6 @@ class WaypointUpdater(object):
         if self.base_waypoints is None:
             return None
 
-    #---------------------------------------------------------------------------
     def waypoints_cb(self, msg):
         """ Store the given map """
         self.base_waypoints = msg.waypoints
@@ -158,6 +137,7 @@ class WaypointUpdater(object):
 #    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
 #        """Unwraps the waypoint object to set the value for the linear speed."""
 #        waypoints[waypoint].twist.twist.linear.x = velocity
+#---------------------------------------------------------------------------
 
     def distance(self, waypoints, wp1, wp2):
         dist = 0
@@ -166,7 +146,6 @@ class WaypointUpdater(object):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
-    #---------------------------------------------------------------------------
     def traffic_cb(self, msg):
         """
         Consider traffic light when setting waypoint velocity

@@ -191,32 +191,6 @@ class TLDetector(object):
 
         return np.argmin(closest_index)
 
-
-#    def get_closest_waypoint_index(self, pose):
-#        """Identify the index of closest waypoint in self.base_waypoints_np for the given pose
-#        https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
-#        NB: 'closest' may be behind
-#        Args:
-#        pose (Pose): position to match a waypoint to. Either ROS pose type or complex(x,y)
-#
-#        Returns:
-#        int: index of the closest waypoint in self.waypoints
-#        """
-#        if len(self.base_waypoints) == 0:
-#            rospy.logwarn("tl_detector: Waypoints numpy array is not initialized")
-#            return -1
-#
-#        if type(pose) is list:
-#            # pose comes from stop_line_positions
-#            get_distance = np.vectorize(lambda waypoint: np.linalg.norm(complex(pose[0], pose[1]) - waypoint))
-#        else:
-#            # pose comes from ROS pose type
-#            get_distance = np.vectorize(lambda waypoint: np.linalg.norm(complex(pose.position.x,
-#                                                                                pose.position.y) - waypoint))
-#
-#        closest_point = get_distance(self.base_waypoints)
-#        return np.argmin(closest_point)
-
             
     def get_next_light(self,stop_line_locations):
         """
@@ -238,10 +212,6 @@ class TLDetector(object):
         if len(self.stop_line_pos_indxs)==0:
             self.stop_line_pos_indxs = [self.get_closest_waypoint_index(stop_light_loc)
                                        for stop_light_loc in stop_line_locations]
-#            for stop_line_loc in stop_line_locations:
-#                stop_line_pos_indxs =self.get_closest_waypoint_index(stop_light_loc)
-#            self.stop_line_pos_indxs.append(stop_line_pos_indxs)
-#
         #get car_index
         curr_car_index = self.get_closest_waypoint_index(self.pose)
         if self.car_index is not None:
@@ -253,18 +223,14 @@ class TLDetector(object):
             car_dir = 1
 
         self.car_index = curr_car_index
-        closest_light_index = []
         self.in_last_range = self.in_range
         #find the closest upcoming stop line waypoint index in front of the car
-        for line_index in self.stop_line_pos_indxs:
-            if 0 < (car_dir * (line_index - curr_car_index)) <= 100:
-                closest_light_index.append(line_index)
-
-#        closest_light_index = [0 < (car_dir *(line_index - curr_car_index)) <= 100
-#              for line_index in self.stop_line_pos_indxs]
+        closest_light_index = [0 < (car_dir *(line_index - curr_car_index)) <= 100
+                  for line_index in self.stop_line_pos_indxs]
+                  
         if any(closest_light_index):
             next_light_index  = self.stop_line_pos_indxs[np.argmax(closest_light_index)]
-            rospy.logwarn("closest tl index:={}".format(next_light_index))
+#            rospy.logwarn("closest tl index:={}".format(next_light_index))
             self.in_range = True
         else:
             self.in_range = False
@@ -291,12 +257,12 @@ class TLDetector(object):
 
         MIN_IMG_HEIGHT = 50
 
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8") #"rgb8"
-        #get bounding box of traffic light which has been detected
+        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
         
         classification = {TrafficLight.RED: 0 , TrafficLight.YELLOW: 0 ,
             TrafficLight.GREEN : 0, TrafficLight.UNKNOWN : 0}
-    
+        
+        #get bounding box of traffic light which has been detected
         bboxes , _ = self.light_classifier.get_detector(cv_image)
         for i ,box in  enumerate(bboxes):
             x1 = box[0][0]
