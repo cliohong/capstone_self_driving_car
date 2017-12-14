@@ -226,7 +226,7 @@ class TLDetector(object):
         self.in_last_range = self.in_range
         #find the closest upcoming stop line waypoint index in front of the car
         for line_index in self.stop_line_pos_indxs:
-            if 0 < (car_dir * (line_index - car_index)) <= 100:
+            if 0 < (car_dir * (line_index - curr_car_index)) <= 100:
                 closest_light_index.append(line_index)
 
         if any(closest_light_index):

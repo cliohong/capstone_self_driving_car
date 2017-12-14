@@ -154,7 +154,3 @@ class TLClassifier(object):
             rospy.logwarn("ErroR - cannot classify !")
             return TrafficLight.UNKNOWN
 
-
-                def load_graph(self):
-                    graph_def = tf.GraphDef()
-                    with open(self.)
