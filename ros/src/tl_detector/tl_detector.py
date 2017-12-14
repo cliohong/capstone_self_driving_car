@@ -27,7 +27,16 @@ LOOKAHEAD_WPS = 200
 class TLDetector(object):
     def __init__(self):
         rospy.init_node('tl_detector')
-
+        #lock to access to image data between 2 threads at same time
+        self.lock = Lock()
+        #Detector thread waits for the event
+        self.event = Event()
+        self.event.clear()
+        #create and start a next detector thread that do jobs of detecting/classfying traffic light images
+        self.thread = Thread(target = self.detector_thread)
+        self.thread.start()
+        
+        
         self.pose = None
         self.base_waypoints = np.array([])
         self.theta = None
@@ -56,14 +65,7 @@ class TLDetector(object):
         #self.stop_light_loc={}
         
         
-        #lock to access to image data between 2 threads at same time
-        self.lock = Lock()
-        #Detector thread waits for the event
-        self.event = Event()
-        self.event.clear()
-        #create and start a next detector thread that do jobs of detecting/classfying traffic light images
-        self.thread = Thread(target = self.detector_thread)
-        self.thread.start()
+    
         
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb,queue_size=1)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb,queue_size=1)
@@ -152,10 +154,10 @@ class TLDetector(object):
         Args:
             msg (Image): image from car-mounted camera
         """
-        
+      
+        self.lock.acquire()
         self.has_image = True
         self.camera_image = msg
-        self.lock.acquire()
         self.event.set()
         self.lock.release()
 #
