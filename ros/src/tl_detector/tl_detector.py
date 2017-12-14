@@ -42,7 +42,7 @@ class TLDetector(object):
         self.in_range = False
         self.in_last_range = False
         config_string = rospy.get_param("/traffic_light_config")
-        self.config = yaml.load(config_string)
+        self.config = yaml.safe_load(config_string)
         #cached positions of stop lines in front of traffic lights
         self.stop_line_pos_indxs=[]
             #[Point(x,y) for x,y in self.config['stop_line_positions']]
@@ -204,13 +204,16 @@ class TLDetector(object):
         if self.pose == None:
             rospy.logdebug("Pose is not set")
             return -1
+
         car_dir = 1
         next_light_index = -1
         if len(self.stop_line_pos_indxs)==0:
-            for stop_line_loc in stop_line_locations:
-                stop_line_pos_indxs =self.get_closest_waypoint_index(stop_light_loc)
-            self.stop_line_pos_indxs.append(stop_line_pos_indxs)
-        
+            self.stop_line_pos_indxs = [get_closest_waypoint_index(stop_light_loc)
+                                       for stop_light_loc in stop_line_locations]
+#            for stop_line_loc in stop_line_locations:
+#                stop_line_pos_indxs =self.get_closest_waypoint_index(stop_light_loc)
+#            self.stop_line_pos_indxs.append(stop_line_pos_indxs)
+#
         #get car_index
         curr_car_index = self.get_closest_waypoint_index(self.pose.pose)
         if self.car_index is not None:
@@ -222,13 +225,15 @@ class TLDetector(object):
             car_dir = 1
 
         self.car_index = curr_car_index
-        closest_light_index = []
+#closest_light_index = []
         self.in_last_range = self.in_range
         #find the closest upcoming stop line waypoint index in front of the car
-        for line_index in self.stop_line_pos_indxs:
-            if 0 < (car_dir * (line_index - curr_car_index)) <= 100:
-                closest_light_index.append(line_index)
+#        for line_index in self.stop_line_pos_indxs:
+#            if 0 < (car_dir * (line_index - curr_car_index)) <= 100:
+#                closest_light_index.append(line_index)
 
+        closest_light_index = [0 < (car_dir *(line_index - curr_car_index)) <= 100
+              for line_index in self.stop_line_pos_indxs]
         if any(closest_light_index):
             next_light_index  = self.stop_line_pos_indxs[np.argmax(closest_light_index)]
             self.in_range = True
