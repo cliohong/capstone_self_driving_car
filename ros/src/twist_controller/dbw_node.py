@@ -100,14 +100,14 @@ class DBWNode(object):
             if not all_available:
                 continue
         
-            self.cte = dbw_helper.cte(self.pose, self.waypoints)
+        self.cte =0 # dbw_helper.cte(self.pose, self.waypoints)
             
             yaw_steer = self.yaw_controller.get_steering(self.linear_velocity, self.angular_velocity, self.current_linear_velocity)
             
             throttle, brake, steer = self.controller.control(self.linear_velocity,                                                                self.angular_velocity, self.current_linear_velocity,self.dbw_enabled, self.cte)
             
             if self.dbw_enabled:
-               self.publish(throttle, brake, 0.2*steer+ yaw_steer)
+               self.publish(throttle, brake,  yaw_steer)
         
             rate.sleep()
 

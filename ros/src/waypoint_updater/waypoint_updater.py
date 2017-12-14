@@ -66,10 +66,10 @@ class WaypointUpdater(object):
             #rospy.logwarn("tarffic light index:={}".format(self.traffic_index))
             closest_car_index = waypoint_helper.get_closest_waypoint_index(self.pose, self.base_waypoints)
             self.current_waypoint_ahead = closest_car_index
-            lookahead_waypoints = self.get_waypoint_indxs(closest_car_index,LOOKAHEAD_WPS)
+            #lookahead_waypoints = self.get_waypoint_indxs(closest_car_index,LOOKAHEAD_WPS)
 
             # Get subset waypoints ahead
-            #lookahead_waypoints = waypoint_helper.get_next_waypoints(self.base_waypoints,closest_car_index, LOOKAHEAD_WPS)
+            lookahead_waypoints = waypoint_helper.get_next_waypoints(self.base_waypoints,closest_car_index, LOOKAHEAD_WPS)
 
             # Traffic light must be new and near ahead
             time = rospy.get_time() - self.traffic_time_received
@@ -88,15 +88,14 @@ class WaypointUpdater(object):
             if stopped_distance < 30 and stopped_distance > 0 :
                 is_near = True
             if is_near:
-                # for i , waypoint in enumerate(lookahead_waypoints):
-                for i in lookahead_waypoints
+                for i , waypoint in enumerate(lookahead_waypoints):
                      waypoint.twist.twist.linear.x = self.get_slow_down_speed(closest_car_index+i)
             if self.current_velocity > 11:
                 self.current_velocity = 10.5
 #rospy.logwarn("the current speed is:={}".format(self.current_velocity))
 
             # Publish
-            lane = waypoint_helper.publish_lane_object(self.frame_id, self.base_waypoints, lookahead_waypoints)
+            lane = waypoint_helper.publish_lane_object(self.frame_id, lookahead_waypoints)
             #lane = waypoint_helper.publish_lane_object(self.frame_id,lookahead_waypoints)
 
             self.final_waypoints_pub.publish(lane)

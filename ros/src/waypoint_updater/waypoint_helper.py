@@ -9,12 +9,12 @@ from copy import deepcopy
 dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
 
 
-def publish_lane_object(frame_id, waypoints,waypoint_indxs):
+def publish_lane_object(frame_id, waypoints):
     """Publish lane object which contains a lofst of final waypoints with velocities"""
     lane = Lane()
     lane.header.frame_id = frame_id
-    #lane.waypoints = waypoints
-    lane.waypoints = [waypoints[i] for i in waypoint_indxs]
+    lane.waypoints = waypoints
+    #lane.waypoints = [waypoints[i] for i in waypoint_indxs]
     lane.header.stamp = rospy.Time.now()
     return lane
 
