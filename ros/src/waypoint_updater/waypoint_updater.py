@@ -14,7 +14,7 @@ from styx_msgs.msg import Lane
 import waypoint_helper
 import numpy as np
 LOOKAHEAD_WPS = 200 #: Number of waypoints will be published
-
+MAX_SPEED = 8
 class WaypointUpdater(object):
     """
     Given the position and map this object publishes
@@ -79,18 +79,25 @@ class WaypointUpdater(object):
             stopped_distance = self.distance(self.base_waypoints, closest_car_index,self.traffic_index)
             #rospy.logwarn("the distance with no tl around:={}".format(stopped_distance))
             #rospy.logwarn("---------------------------")
-            if stopped_distance < 30 and stopped_distance > 0 :
-                is_near = True
-            if is_near:
+            if self.traffic_index == -1:
+                if self.current_velocity < MAX_SPEED:
+                   self.current_velocity += self.current_velocity + 0.5
+                else:
+#                    self.current_velocity = self.current_velocity
+                   self.current_velocity = np.linspace(self.current_velocity, MAX_SPEED, 1=(LOOKAHEAD_WPS//17))
+#full_speed = np.ones(15*LOOKAHEAD_WPS//17)*MAX_SPEED
+#speeds = 10
+            elif stopped_distance < 30 and stopped_distance > 0 :
                 for i , waypoint in enumerate(lookahead_waypoints):
-                     waypoint.twist.twist.linear.x = self.get_slow_down_speed(closest_car_index+i)
-            if self.current_velocity > 10.5:
-                self.current_velocity = 10.
+                    waypoint.twist.twist.linear.x=self.get_slow_down_speed(closest_car_index+i)
+            else:
+                self.current_velocity =  np.linspace(self.current_velocity, MAX_SPEED, 1+(LOOKAHEAD_WPS//8))
 #rospy.logwarn("the current speed is:={}".format(self.current_velocity))
 
+#for i , waypoint in enumerate(lookahead_waypoints):
+#waypoint.twist.twist.linear.x =self.current_velocity
             # Publish
             lane = waypoint_helper.publish_lane_object(self.frame_id, lookahead_waypoints)
-            #lane = waypoint_helper.publish_lane_object(self.frame_id,lookahead_waypoints)
 
             self.final_waypoints_pub.publish(lane)
             self.car_index_pub.publish(closest_car_index)
