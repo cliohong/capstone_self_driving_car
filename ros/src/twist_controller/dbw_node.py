@@ -101,10 +101,10 @@ class DBWNode(object):
                 continue
         
          # dbw_helper.cte(self.pose, self.waypoints)
-            
+            target_velocity = self.waypoints[0].twist.twist.linear.x
             yaw_steer = self.yaw_controller.get_steering(self.linear_velocity, self.angular_velocity, self.current_linear_velocity)
             
-            throttle, brake, _ = self.controller.control(self.linear_velocity,                                                                self.angular_velocity, self.current_linear_velocity,self.dbw_enabled, self.cte)
+            throttle, brake, _ = self.controller.control(target_velocity,                                                                self.angular_velocity, self.current_linear_velocity,self.dbw_enabled, self.cte)
             
             if self.dbw_enabled:
                self.publish(throttle, brake,  yaw_steer)

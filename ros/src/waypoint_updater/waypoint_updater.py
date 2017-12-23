@@ -14,7 +14,7 @@ from styx_msgs.msg import Lane
 import waypoint_helper
 import numpy as np
 LOOKAHEAD_WPS = 200 #: Number of waypoints will be published
-MAX_SPEED = 8
+MAX_SPEED = 9.5
 class WaypointUpdater(object):
     """
     Given the position and map this object publishes
@@ -70,7 +70,6 @@ class WaypointUpdater(object):
             #rospy.logwarn("time we received tl location:={}".format(time))
             #rospy.logwarn("---------------------------")
 
-            is_near = False
 
             # Set target speeds
             # if is_new and is_near_ahead:
@@ -79,23 +78,26 @@ class WaypointUpdater(object):
             stopped_distance = self.distance(self.base_waypoints, closest_car_index,self.traffic_index)
             #rospy.logwarn("the distance with no tl around:={}".format(stopped_distance))
             #rospy.logwarn("---------------------------")
+            speed = MAX_SPEED
+            
             if self.traffic_index == -1:
                 if self.current_velocity < MAX_SPEED:
                    self.current_velocity += self.current_velocity + 0.5
                 else:
 #                    self.current_velocity = self.current_velocity
-                   self.current_velocity = np.linspace(self.current_velocity, MAX_SPEED, 1=(LOOKAHEAD_WPS//17))
-#full_speed = np.ones(15*LOOKAHEAD_WPS//17)*MAX_SPEED
-#speeds = 10
+                   speed = min(self.current_velocity, MAX_SPEED)
             elif stopped_distance < 30 and stopped_distance > 0 :
                 for i , waypoint in enumerate(lookahead_waypoints):
-                    waypoint.twist.twist.linear.x=self.get_slow_down_speed(closest_car_index+i)
+                    speed = self.get_slow_down_speed(closest_car_index+i)
             else:
-                self.current_velocity =  np.linspace(self.current_velocity, MAX_SPEED, 1+(LOOKAHEAD_WPS//8))
+                if self.current_velocity < MAX_SPEED:
+                    speed = self.current_velocity +(MAX_SPEED - self.current_velocity)%10
+                else:
+                    speed = MAX_SPEED
 #rospy.logwarn("the current speed is:={}".format(self.current_velocity))
 
-#for i , waypoint in enumerate(lookahead_waypoints):
-#waypoint.twist.twist.linear.x =self.current_velocity
+            for i , waypoint in enumerate(lookahead_waypoints):
+                waypoint.twist.twist.linear.x =speed
             # Publish
             lane = waypoint_helper.publish_lane_object(self.frame_id, lookahead_waypoints)
 
@@ -111,9 +113,9 @@ class WaypointUpdater(object):
         speed = 0.0
 
         if dist > self.stopped_distance:
-            speed = car_speed * (1 - 10/(dist+0.0001))
+            speed = min(MAX_SPEED, 0.15*abs(dist - 5)) #car_speed * (1 - 10/(dist+0.0001))
 
-        if speed < 1.8:
+        if speed < 1.6:
             speed = 0.0
         return speed
 
