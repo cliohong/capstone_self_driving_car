@@ -110,10 +110,10 @@ class WaypointUpdater(object):
         """
         dist = self.distance(self.base_waypoints, index, self.traffic_index)
         car_speed = self.base_waypoints[index].twist.twist.linear.x
-        speed = 0.0
+        #speed = 0.0
 
-        if dist > self.stopped_distance:
-            speed = min(MAX_SPEED, 0.15*abs(dist - 5)) #car_speed * (1 - 10/(dist+0.0001))
+#if dist > self.stopped_distance:
+        speed = min(MAX_SPEED, 0.25*abs(dist - 5)) #car_speed * (1 - 10/(dist+0.0001))
 
         if speed < 1.6:
             speed = 0.0
